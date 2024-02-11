@@ -1,5 +1,5 @@
-from .label_replacement import apply_class_label_replacement
-from .client_utils import log_client_data_statistics
+from attack.label_filpping.label_replacement import apply_class_label_replacement
+from federated_learning.utils.client_utils import log_client_data_statistics
 
 def poison_data(logger, distributed_dataset, num_workers, poisoned_worker_ids, replacement_method):
     """

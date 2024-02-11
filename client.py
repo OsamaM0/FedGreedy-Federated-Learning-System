@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import classification_report
-from federated_learning.schedulers import MinCapableStepLR
+from federated_learning.model.schedulers import MinCapableStepLR
 import os
 import numpy
 import copy

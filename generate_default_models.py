@@ -1,6 +1,6 @@
 from federated_learning.arguments import Arguments
-from federated_learning.nets import Cifar10CNN
-from federated_learning.nets import FashionMNISTCNN
+from federated_learning.model.nets import Cifar10CNN
+from federated_learning.model.nets import FashionMNISTCNN
 import os
 import torch
 from loguru import logger

@@ -1,16 +1,15 @@
 import os
 from loguru import logger
 from federated_learning.arguments import Arguments
-from federated_learning.dimensionality_reduction import calculate_pca_of_gradients
-from federated_learning.parameters import get_layer_parameters
-from federated_learning.parameters import calculate_parameter_gradients
+from defence.dimensionality_reduction import calculate_pca_of_gradients
+from federated_learning.model.parameters import get_layer_parameters
+from federated_learning.model.parameters import calculate_parameter_gradients
 from federated_learning.utils import get_model_files_for_epoch
 from federated_learning.utils import get_model_files_for_suffix
 from federated_learning.utils import apply_standard_scaler
 from federated_learning.utils import get_worker_num_from_model_file_name
 from client import Client
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
 # Paths you need to put in.
 MODELS_PATH = "/absolute/path/to/models/folder/1823_models"

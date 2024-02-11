@@ -1,9 +1,8 @@
 import numpy
-from .label_replacement import apply_class_label_replacement
 import os
 import pickle
 import random
-from ..datasets import Dataset
+from federated_learning.datasets.downloader.dataset import Dataset
 
 def generate_data_loaders_from_distributed_dataset(distributed_dataset, batch_size):
     """

@@ -1,7 +1,9 @@
 from loguru import logger
+
+import plots
 from federated_learning.arguments import Arguments
 from federated_learning.datasets import generate_data_loaders_from_distributed_dataset
-from federated_learning.datasets.data_distribution import distribute_batches_equally
+from federated_learning.datasets.data_distribution import distribute_batches_equally, distribute_batches_non_iid
 from federated_learning.aggregation import average_nn_parameters
 from federated_learning.utils import convert_distributed_data_into_numpy
 from attack import poison_data
@@ -78,6 +80,7 @@ def run_exp(replacement_method, num_poisoned_workers, KWARGS, client_selection_s
     # Initialize logger
     handler = logger.add(log_files[0], enqueue=True)
 
+    # 1. Get the User Arguments
     args = Arguments(logger)
     args.set_model_save_path(models_folders[0])
     args.set_num_poisoned_workers(num_poisoned_workers)
@@ -85,21 +88,31 @@ def run_exp(replacement_method, num_poisoned_workers, KWARGS, client_selection_s
     args.set_client_selection_strategy(client_selection_strategy)
     args.log()
 
+    # 2. Load the Train and Test Datasets
     train_data_loader = load_train_data_loader(logger, args)
     test_data_loader = load_test_data_loader(logger, args)
-
-    # Distribute batches equal volume IID
-    distributed_train_dataset = distribute_batches_equally(train_data_loader, args.get_num_workers())
+    # 3. Distribute batches equal volume IID
+    distributed_train_dataset = distribute_batches_non_iid(train_data_loader, args.get_num_workers())
+    print(len(distributed_train_dataset))
+    print(len(next(iter(distributed_train_dataset))[0]))
     distributed_train_dataset = convert_distributed_data_into_numpy(distributed_train_dataset)
+    print((next(iter(distributed_train_dataset))))
+    plots.plot_data_distribution(distributed_train_dataset)
 
+    # 4. Random Choose Clients and Poison their Train Datasets
     poisoned_workers = identify_random_elements(args.get_num_workers(), args.get_num_poisoned_workers())
     distributed_train_dataset = poison_data(logger, distributed_train_dataset, args.get_num_workers(), poisoned_workers, replacement_method)
 
+    # 5. Generate Dataloader for Both poisend and trained datasets
     train_data_loaders = generate_data_loaders_from_distributed_dataset(distributed_train_dataset, args.get_batch_size())
 
+    # 6. Assign Train & Test Dataset to Clients
     clients = create_clients(args, train_data_loaders, test_data_loader)
 
+    # 7. Start Federated Learning
     results, worker_selection = run_machine_learning(clients, args, poisoned_workers)
+
+    # 8. Save Results
     save_results(results, results_files[0])
     save_results(worker_selection, worker_selections_files[0])
 

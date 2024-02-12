@@ -2,12 +2,12 @@ from loguru import logger
 import pathlib
 import os
 from federated_learning.arguments import Arguments
-from federated_learning.datasets import CIFAR10Dataset
-from federated_learning.datasets import MNISTDataset
-from federated_learning.datasets import FashionMNISTDataset
-from federated_learning.utils import generate_train_loader
-from federated_learning.utils import generate_test_loader
-from federated_learning.utils import save_data_loader_to_file
+from federated_learning.datasets.downloader import CIFAR10Dataset
+from federated_learning.datasets.downloader import MNISTDataset
+from federated_learning.datasets.downloader import FashionMNISTDataset
+from federated_learning.datasets import generate_train_loader
+from federated_learning.datasets import generate_test_loader
+from federated_learning.datasets import save_data_loader_to_file
 
 
 if __name__ == '__main__':

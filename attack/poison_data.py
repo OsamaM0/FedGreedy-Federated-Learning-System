@@ -19,7 +19,7 @@ def poison_data(logger, distributed_dataset, num_workers, poisoned_worker_ids, r
     # TODO: Add support for multiple replacement methods?
     poisoned_dataset = []
 
-    class_labels = list(set(distributed_dataset[0][1]))
+    class_labels = list(set(range(10)))
 
     logger.info("Poisoning data for workers: {}".format(str(poisoned_worker_ids)))
 

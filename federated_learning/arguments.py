@@ -42,7 +42,7 @@ class Arguments:
 
         self.train_data_loader_pickle_path = "data_loaders/mnist/train_data_loader.pickle"
         self.test_data_loader_pickle_path = "data_loaders/mnist/test_data_loader.pickle"
-
+        self.data_distribution = "iid"
         self.loss_function = torch.nn.CrossEntropyLoss
 
         self.default_model_folder_path = "default_models"
@@ -144,6 +144,13 @@ class Arguments:
 
     def get_save_model_folder_path(self):
         return self.save_model_path
+
+    def get_data_distribution(self):
+        return self.data_distribution
+
+    def set_data_distribution(self, data_distribution):
+        self.data_distribution = data_distribution
+
 
     def get_learning_rate_from_epoch(self, epoch_idx):
         lr = self.lr * (self.scheduler_gamma ** int(epoch_idx / self.scheduler_step_size))

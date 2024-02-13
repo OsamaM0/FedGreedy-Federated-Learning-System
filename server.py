@@ -3,16 +3,13 @@ from loguru import logger
 import plots
 from federated_learning.arguments import Arguments
 from federated_learning.datasets import generate_data_loaders_from_distributed_dataset
-from federated_learning.datasets.data_distribution import distribute_batches_equally, distribute_batches_non_iid
 from federated_learning.aggregation import average_nn_parameters
-from federated_learning.utils import convert_distributed_data_into_numpy
 from attack import poison_data
 from federated_learning.utils import identify_random_elements
 from federated_learning.datasets import save_results
-from federated_learning.datasets import load_train_data_loader
-from federated_learning.datasets import load_test_data_loader
 from federated_learning.utils import generate_experiment_ids
 from federated_learning.utils import convert_results_to_csv
+from federated_learning.utils import load_pickle_file
 from client import Client
 
 def train_subset_of_clients(epoch, args, clients, poisoned_workers):
@@ -86,17 +83,24 @@ def run_exp(replacement_method, num_poisoned_workers, KWARGS, client_selection_s
     args.set_num_poisoned_workers(num_poisoned_workers)
     args.set_round_worker_selection_strategy_kwargs(KWARGS)
     args.set_client_selection_strategy(client_selection_strategy)
+    args.set_data_distribution("non_iid")
     args.log()
 
     # 2. Load the Train and Test Datasets
-    train_data_loader = load_train_data_loader(logger, args)
-    test_data_loader = load_test_data_loader(logger, args)
-    # 3. Distribute batches equal volume IID
-    distributed_train_dataset = distribute_batches_non_iid(train_data_loader, args.get_num_workers())
-    print(len(distributed_train_dataset))
-    print(len(next(iter(distributed_train_dataset))[0]))
-    distributed_train_dataset = convert_distributed_data_into_numpy(distributed_train_dataset)
-    print((next(iter(distributed_train_dataset))))
+    data_distribution = args.get_data_distribution()
+    train_data_loader_path = args.get_train_data_loader_pickle_path().split("/")
+    train_data_loader_path.insert(-1, data_distribution)
+    print(train_data_loader_path)
+    args.set_train_data_loader_pickle_path("/".join(train_data_loader_path))
+
+    test_data_loader_path = args.get_test_data_loader_pickle_path().split("/")
+    test_data_loader_path.insert(-1, data_distribution)
+    args.set_test_data_loader_pickle_path("/".join(test_data_loader_path))
+
+
+    distributed_train_dataset = load_pickle_file(args.get_train_data_loader_pickle_path())
+    test_data_loader = load_pickle_file(args.get_test_data_loader_pickle_path())
+
     plots.plot_data_distribution(distributed_train_dataset)
 
     # 4. Random Choose Clients and Poison their Train Datasets

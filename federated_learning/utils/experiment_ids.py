@@ -1,3 +1,5 @@
+import os
+import pathlib
 def generate_experiment_ids(start_idx, num_exp):
     """
     Generate the filenames for all experiment IDs.
@@ -10,14 +12,21 @@ def generate_experiment_ids(start_idx, num_exp):
     log_files = []
     results_files = []
     models_folders = []
-    worker_selections_files = []
+    reputation_worker_selections_files = []
+    data_worker_selections_files = []
 
     for i in range(num_exp):
-        idx = str(start_idx + i)
+        # idx = str(start_idx + i)
+        idx = start_idx
+        if not os.path.exists("fashion_stats"):
+            pathlib.Path("fashion_stats").mkdir()
+        if not os.path.exists("logs"):
+            pathlib.Path("logs").mkdir()
 
         log_files.append("logs/" + idx + ".log")
-        results_files.append(idx + "_results.csv")
+        results_files.append("fashion_stats/" +idx + "_results.csv")
         models_folders.append(idx + "_models")
-        worker_selections_files.append(idx + "_workers_selected.csv")
+        reputation_worker_selections_files.append("fashion_stats/" + idx + "reputation_workers_selected.csv")
+        data_worker_selections_files.append("fashion_stats/" + idx + "data_workers_selected.csv")
 
-    return log_files, results_files, models_folders, worker_selections_files
+    return log_files, results_files, models_folders, reputation_worker_selections_files, data_worker_selections_files

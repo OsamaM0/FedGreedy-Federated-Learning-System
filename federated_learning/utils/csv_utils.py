@@ -4,14 +4,19 @@ def convert_results_to_csv(results):
     """
     cleaned_epoch_test_set_results = []
 
-    for row in results:
-        components = [row[0], row[1]]
+    components = {"Epoch":[],"Accuracy":[], "Loss":[]}
+    precision = {f'Prec{i}':[] for i in range(len(results[0][3]))}
+    recall = {f'Rec{i}':[] for i in range(len(results[0][3]))}
+    components.update(precision)
+    components.update(recall)
 
-        for class_precision in row[2]:
-            components.append(class_precision)
-        for class_recall in row[3]:
-            components.append(class_recall)
+    for epoch, row in enumerate(results):
+        components["Epoch"].append(epoch+1)
+        components["Accuracy"].append(row[0])
+        components["Loss"].append(row[1])
+        for i, class_precision in enumerate(row[2]):
+            components[f'Prec{i}'].append(class_precision)
+        for i, class_recall in enumerate(row[3]):
+            components[f'Rec{i}'].append(class_recall)
 
-        cleaned_epoch_test_set_results.append(components)
-
-    return cleaned_epoch_test_set_results
+    return components

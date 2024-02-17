@@ -1,7 +1,11 @@
+from collections import OrderedDict
+
 import torch
 import torch.optim as optim
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import classification_report
+from torch import nn
+
 from federated_learning.model.schedulers import MinCapableStepLR
 import os
 import numpy
@@ -20,12 +24,13 @@ class Client:
         :param test_data_loader: Test data loader
         :type test_data_loader: torch.utils.data.DataLoader
         """
+        # Client's arguments
         self.args = args
         self.client_idx = client_idx
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.device = self.initialize_device()
+        # Client's neural network
         self.set_net(self.load_default_model())
-
         self.loss_function = self.args.get_loss_function()()
         self.optimizer = optim.SGD(self.net.parameters(),
             lr=self.args.get_learning_rate(),
@@ -35,17 +40,11 @@ class Client:
             self.args.get_scheduler_gamma(),
             self.args.get_min_lr())
 
+        # Client's training and test data
         self.train_data_loader = train_data_loader
         self.test_data_loader = test_data_loader
 
-    def initialize_device(self):
-        """
-        Creates appropriate torch device for client operation.
-        """
-        if torch.cuda.is_available() and self.args.get_cuda():
-            return torch.device("cuda:0")
-        else:
-            return torch.device("cpu")
+
 
     def set_net(self, net):
         """
@@ -109,45 +108,81 @@ class Client:
         """
         self.net.load_state_dict(copy.deepcopy(new_params), strict=True)
 
-    def train(self, epoch):
+    def get_attributes_name(self):
+        att_name = []
+        for (data, target) in self.train_data_loader:
+            att_name.extend([t.item() for t in target])
+        return set(att_name)
+
+    def diff_squared_sum(self, model2):
+        """Compute the squared sum of the differences between the parameters of a neural network model and another model."""
+        dss = 0
+
+        # Get parameters of the first model
+        params1 = self.get_nn_parameters()
+
+        # Check if model2 is a PyTorch model
+        if isinstance(model2, nn.Module):
+            # Compute squared sum of differences for weights
+            for name, param2 in model2.named_parameters():
+                if name in params1:
+                    param1 = params1[name]
+                    dss += ((param1 - param2) ** 2).sum()
+        elif isinstance(model2, OrderedDict):
+            # Iterate through the OrderedDict items
+            for name, param2 in model2.items():
+                if name in params1:
+                    param1 = params1[name]
+                    dss += ((param1 - param2) ** 2).sum()
+        else:
+            raise ValueError("Unsupported model type. Model must be a PyTorch model or an OrderedDict.")
+
+        return dss
+    def train(self, round, epochs = 5, type="fed_avg"):
         """
-        :param epoch: Current epoch #
-        :type epoch: int
+        :param round: Current round #
+        :type round: int
         """
-        self.net.train()
+        # Get the server model
+        server_model = copy.deepcopy(self.get_nn_parameters())
+        # Set the model to training mode
+        for epoch in range(epochs):
+            self.net.train()
+            # save first training model
+            if self.args.should_save_model(round) and epoch == 0:
+                self.save_model(round, self.args.get_cr_save_start_suffix())
+
+            running_loss = 0.0
+            for i, (inputs, labels) in enumerate(self.train_data_loader, 0):
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
+
+                # zero the parameter gradients
+                self.optimizer.zero_grad()
+
+                # forward + backward + optimize
+                outputs = self.net(inputs)
+                loss = self.loss_function(outputs, labels)
+                if (type == "fed_prox"):
+                    mu = self.args.get_mu()
+                    loss += (mu / 2) * self.diff_squared_sum(server_model)
+                loss.backward()
+                self.optimizer.step()
+
+                # print statistics
+                running_loss += loss.item()
+                if i % self.args.get_log_interval() == 0 and epoch == epochs-1:
+                    self.args.get_logger().info(
+                        '[%d, %5d] loss: %.3f' % (round, i, running_loss / self.args.get_log_interval()))
+
+                    running_loss = 0.0
+
+            self.scheduler.step()
 
         # save model
-        if self.args.should_save_model(epoch):
-            self.save_model(epoch, self.args.get_epoch_save_start_suffix())
-
-        running_loss = 0.0
-        for i, (inputs, labels) in enumerate(self.train_data_loader, 0):
-            inputs, labels = inputs.to(self.device), labels.to(self.device)
-
-            # zero the parameter gradients
-            self.optimizer.zero_grad()
-
-            # forward + backward + optimize
-            outputs = self.net(inputs)
-            loss = self.loss_function(outputs, labels)
-            loss.backward()
-            self.optimizer.step()
-
-            # print statistics
-            running_loss += loss.item()
-            if i % self.args.get_log_interval() == 0:
-                self.args.get_logger().info('[%d, %5d] loss: %.3f' % (epoch, i, running_loss / self.args.get_log_interval()))
-
-                running_loss = 0.0
-
-        self.scheduler.step()
-
-        # save model
-        if self.args.should_save_model(epoch):
-            self.save_model(epoch, self.args.get_epoch_save_end_suffix())
+        if self.args.should_save_model(round):
+            self.save_model(round, self.args.get_cr_save_end_suffix())
 
         return running_loss
-
     def save_model(self, epoch, suffix):
         """
         Saves the model if necessary.
@@ -172,7 +207,7 @@ class Client:
         """
         return numpy.diagonal(confusion_mat) / numpy.sum(confusion_mat, axis=1)
 
-    def test(self):
+    def test(self, log=False):
         self.net.eval()
 
         correct = 0
@@ -200,11 +235,12 @@ class Client:
         class_precision = self.calculate_class_precision(confusion_mat)
         class_recall = self.calculate_class_recall(confusion_mat)
 
-        self.args.get_logger().debug('Test set: Accuracy: {}/{} ({:.0f}%)'.format(correct, total, accuracy))
-        self.args.get_logger().debug('Test set: Loss: {}'.format(loss))
-        self.args.get_logger().debug("Classification Report:\n" + classification_report(targets_, pred_))
-        self.args.get_logger().debug("Confusion Matrix:\n" + str(confusion_mat))
-        self.args.get_logger().debug("Class precision: {}".format(str(class_precision)))
-        self.args.get_logger().debug("Class recall: {}".format(str(class_recall)))
+        if log:
+            self.args.get_logger().debug('Test set: Accuracy: {}/{} ({:.0f}%)'.format(correct, total, accuracy))
+            self.args.get_logger().debug('Test set: Loss: {}'.format(loss))
+            self.args.get_logger().debug("Classification Report:\n" + classification_report(targets_, pred_))
+            self.args.get_logger().debug("Confusion Matrix:\n" + str(confusion_mat))
+            self.args.get_logger().debug("Class precision: {}".format(str(class_precision)))
+            self.args.get_logger().debug("Class recall: {}".format(str(class_recall)))
 
         return accuracy, loss, class_precision, class_recall

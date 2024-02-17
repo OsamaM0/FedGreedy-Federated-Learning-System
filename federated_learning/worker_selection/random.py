@@ -7,4 +7,5 @@ class RandomSelectionStrategy(SelectionStrategy):
     """
 
     def select_round_workers(self, workers, poisoned_workers, kwargs):
-        return random.sample(workers, kwargs["NUM_WORKERS_PER_ROUND"])
+        workers_id = [worker.get_client_index() for worker in workers]
+        return random.sample(workers_id, kwargs["NUM_WORKERS_PER_ROUND"])

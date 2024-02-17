@@ -8,7 +8,9 @@ def get_epoch_num_from_model_file_name(model_file_name):
     """
     :param model_file_name: string
     """
-    return int(model_file_name.split("_")[2].split(".")[0])
+    print(model_file_name.split("_"))
+
+    return int(model_file_name.split("_")[2])
 
 def get_suffix_from_model_file_name(model_file_name):
     """
@@ -40,7 +42,6 @@ def get_model_files_for_epoch(model_files, epoch_num):
 
     for model in model_files:
         model_epoch_num = get_epoch_num_from_model_file_name(model)
-
         if model_epoch_num == epoch_num:
             epoch_model_files.append(model)
 

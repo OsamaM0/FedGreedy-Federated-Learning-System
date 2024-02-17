@@ -1,9 +1,11 @@
+import math
+
 from loguru import logger
 
 import plots
 from federated_learning.arguments import Arguments
 from federated_learning.datasets import generate_data_loaders_from_distributed_dataset
-from federated_learning.aggregation import average_nn_parameters
+from federated_learning.aggregation import average_nn_parameters, max_nn_parameters
 from attack import poison_data
 from federated_learning.utils import identify_random_elements
 from federated_learning.datasets import save_results
@@ -11,13 +13,13 @@ from federated_learning.utils import generate_experiment_ids
 from federated_learning.utils import convert_results_to_csv
 from federated_learning.utils import load_pickle_file
 from client import Client
-
-def train_subset_of_clients(epoch, args, clients, poisoned_workers):
+from defence import get_poisoned_worker
+def train_subset_of_clients(args, round, clients, poisoned_workers, clients_repitition):
     """
     Train a subset of clients per round.
 
-    :param epoch: epoch
-    :type epoch: int
+    :param round: round
+    :type round: int
     :param args: arguments
     :type args: Arguments
     :param clients: clients
@@ -26,26 +28,59 @@ def train_subset_of_clients(epoch, args, clients, poisoned_workers):
     :type poisoned_workers: list(int)
     """
     kwargs = args.get_round_worker_selection_strategy_kwargs()
-    kwargs["current_epoch_number"] = epoch
+    kwargs["current_epoch_number"] = round
+    epochs = args.get_epoch()
+    algorithm = args.get_algorithm()
 
-    random_workers = args.get_round_worker_selection_strategy().select_round_workers(
-        list(range(args.get_num_workers())),
+    """ CLIENT SELECTION STRATEGY"""
+    # Check first if there is any poisoned data you want to replace
+
+    selected_worker = args.get_round_worker_selection_strategy().select_round_workers(
+        clients,
         poisoned_workers,
         kwargs)
 
-    for client_idx in random_workers:
-        args.get_logger().info("Training epoch #{} on client #{}", str(epoch), str(clients[client_idx].get_client_index()))
-        clients[client_idx].train(epoch)
+    """ TRAINING THE CLIENTS """
+    clients_struggle = []
+    straggler_epochs = max(int(epochs * (args.get_struggling_epochs_percentage())), 1)
+    num_straggler = args.get_struggling_epochs_percentage() * len(selected_worker)
 
-    args.get_logger().info("Averaging client parameters")
-    parameters = [clients[client_idx].get_nn_parameters() for client_idx in random_workers]
-    new_nn_params = average_nn_parameters(parameters)
+    for i, client_idx in enumerate(selected_worker) :
+        args.get_logger().info("Training Round #{} on client #{}", str(round), str(clients[client_idx].get_client_index()))
+        if (i <= math.floor(len(selected_worker) - int(num_straggler))):
+            clients[client_idx].train(round, epochs, algorithm )  # Train
+        elif algorithm == "fed_prox":
+            print("Worker #{} is a straggler".format(client_idx))
+            clients[client_idx].train(round, straggler_epochs, algorithm )
+            clients_struggle.append(client_idx)
 
+        # Evaluation
+        if client_idx in clients_repitition.keys():
+            clients_repitition[client_idx].append(clients[client_idx].test()[0])
+        else:
+            clients_repitition[client_idx] = [None] * (round - 1) + [clients[client_idx].test()[0]]
+
+    for client_idx in clients_repitition.keys():
+        if len(clients_repitition[client_idx]) < round:
+            clients_repitition[client_idx].append(None)
+
+    """ MODEL AGGREGATION STRATEGY"""
+    args.get_logger().info("Aggregate client parameters")
+    parameters = [clients[client_idx].get_nn_parameters() for client_idx in selected_worker]
+
+    if algorithm == "fed_max":
+        clients_acc = [clients[client_idx].test()[0] for client_idx in selected_worker]
+        new_nn_params = max_nn_parameters(parameters, clients_acc, selected_worker)
+    else:
+        new_nn_params = average_nn_parameters(parameters)
+
+
+    """MODEL WEIGHT CLIENT UPDATE"""
     for client in clients:
         args.get_logger().info("Updating parameters on client #{}", str(client.get_client_index()))
         client.update_nn_parameters(new_nn_params)
 
-    return clients[0].test(), random_workers
+    return clients[0].test(log=True), clients_repitition, clients_struggle
 
 def create_clients(args, train_data_loaders, test_data_loader):
     """
@@ -57,22 +92,46 @@ def create_clients(args, train_data_loaders, test_data_loader):
 
     return clients
 
-def run_machine_learning(clients, args, poisoned_workers):
+def run_machine_learning(clients, args):
     """
     Complete machine learning over a series of clients.
     """
-    epoch_test_set_results = []
-    worker_selection = []
-    for epoch in range(1, args.get_num_epochs() + 1):
-        results, workers_selected = train_subset_of_clients(epoch, args, clients, poisoned_workers)
+    cr_test_set_results = []
+    clients_repitition = {}
+    clients_poisoned = []
+    clients_data = {}
 
-        epoch_test_set_results.append(results)
-        worker_selection.append(workers_selected)
+    for round in range(1, args.get_num_cr() + 1):
+        results, clients_repitition, clients_struggle = train_subset_of_clients(args, round ,clients, clients_poisoned, clients_repitition)
 
-    return convert_results_to_csv(epoch_test_set_results), worker_selection
+        prop_poisoned_workers = get_poisoned_worker(round, args.get_save_model_folder_path() )
 
-def run_exp(replacement_method, num_poisoned_workers, KWARGS, client_selection_strategy, idx):
-    log_files, results_files, models_folders, worker_selections_files = generate_experiment_ids(idx, 1)
+        # Determine which workers were selected
+        for client, values in clients_repitition.items():
+            if client not in clients_data:
+                clients_data[client] = [None] * (round - 1)
+            if values[-1] is not None:
+                # Determine if a worker has been poisoned
+                if len(values) >= 2 and values[-2] is not None and values[-1] is not None and values[-2] - values[-1] > 2 and client not in clients_struggle:
+                    if client in prop_poisoned_workers:
+                        clients_poisoned.append(client)
+                        clients_data[client].append("poisoned")
+                    else:
+                        clients_data[client].append("normal")
+                # Determine if a worker is a straggler
+                elif client in clients_struggle:
+                    clients_data[client].append("struggler")
+                # Determine if a worker is normal
+                else:
+                    clients_data[client].append("normal")
+            else:
+                clients_data[client].append(None)
+
+        # Evaluate the model Results
+        cr_test_set_results.append(results)
+    return convert_results_to_csv(cr_test_set_results), clients_data, clients_repitition
+def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_selection_strategy,data_distribution, idx):
+    log_files, results_files, models_folders, reputation_selections_files, data_worker_file = generate_experiment_ids(idx, 1)
 
     # Initialize logger
     handler = logger.add(log_files[0], enqueue=True)
@@ -83,14 +142,14 @@ def run_exp(replacement_method, num_poisoned_workers, KWARGS, client_selection_s
     args.set_num_poisoned_workers(num_poisoned_workers)
     args.set_round_worker_selection_strategy_kwargs(KWARGS)
     args.set_client_selection_strategy(client_selection_strategy)
-    args.set_data_distribution("non_iid")
+    args.set_data_distribution(data_distribution)
+    args.set_algorithm(algorithm)
     args.log()
 
     # 2. Load the Train and Test Datasets
     data_distribution = args.get_data_distribution()
     train_data_loader_path = args.get_train_data_loader_pickle_path().split("/")
     train_data_loader_path.insert(-1, data_distribution)
-    print(train_data_loader_path)
     args.set_train_data_loader_pickle_path("/".join(train_data_loader_path))
 
     test_data_loader_path = args.get_test_data_loader_pickle_path().split("/")
@@ -114,10 +173,12 @@ def run_exp(replacement_method, num_poisoned_workers, KWARGS, client_selection_s
     clients = create_clients(args, train_data_loaders, test_data_loader)
 
     # 7. Start Federated Learning
-    results, worker_selection = run_machine_learning(clients, args, poisoned_workers)
+    results,  worker_data, worker_reputation = run_machine_learning(clients, args)
 
     # 8. Save Results
     save_results(results, results_files[0])
-    save_results(worker_selection, worker_selections_files[0])
+    save_results(worker_reputation, reputation_selections_files[0])
+    print(worker_data)
+    save_results(worker_data, data_worker_file[0])
 
     logger.remove(handler)

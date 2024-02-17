@@ -1,9 +1,9 @@
-from federated_learning.utils import replace_0_with_2
-from federated_learning.utils import replace_5_with_3
-from federated_learning.utils import replace_1_with_9
-from federated_learning.utils import replace_4_with_6
-from federated_learning.utils import replace_1_with_3
-from federated_learning.utils import replace_6_with_0
+from attack.label_filpping import replace_0_with_2
+from attack.label_filpping import replace_5_with_3
+from attack.label_filpping import replace_1_with_9
+from attack.label_filpping import replace_4_with_6
+from attack.label_filpping import replace_1_with_3
+from attack.label_filpping import replace_6_with_0
 from federated_learning.worker_selection import PoisonerProbability
 from server import run_exp
 

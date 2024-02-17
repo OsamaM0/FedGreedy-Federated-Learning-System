@@ -2,3 +2,5 @@ from .breakpoint_before import BeforeBreakpoint
 from .breakpoint_after import AfterBreakpoint
 from .poisoner_probability import PoisonerProbability
 from .random import RandomSelectionStrategy
+from .p_work_selection import PaperSelectionStrategy
+from .Jaccard_based_greedy_worker_selection import JaccardGreedySelectionStrategy

@@ -1,5 +1,8 @@
 import csv
 import json
+import pandas
+import pandas as pd
+
 
 def generate_json_repr_for_worker(worker_id, is_worker_poisoned, test_set_results):
     """
@@ -36,11 +39,9 @@ def save_results(results, filename):
     :param filename: File name to write results to
     :type filename: String
     """
-    with open(filename, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile, delimiter=',')
+    df = pd.DataFrame(results)
+    df.to_csv(filename, index=False)
 
-        for experiment in results:
-            writer.writerow(experiment)
 
 def read_results(filename):
     """

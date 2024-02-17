@@ -1,4 +1,4 @@
-from federated_learning.model.nets import FashionMNISTCNN
+from federated_learning.model.nets import FashionMNISTCNN, HAPTDNN
 import torch
 import json
 
@@ -13,10 +13,10 @@ class Arguments:
         self.algorithm = "fed_avg"
         self.batch_size = 10
         self.test_batch_size = 1000
-        self.cr = 20
+        self.cr = 30
         self.epoch = 1
         self.lr = 0.01
-        self.mu = 0.01
+        self.mu = 0.001
         self.momentum = 0.5
         self.cuda = True
         self.shuffle = False
@@ -34,7 +34,7 @@ class Arguments:
         self.save_model = True
         self.save_cr_interval = 1
         self.save_model_path = "models"
-        self.save_stats_path = "mnist_stats"
+        self.save_stats_path = "stats"
         self.cr_save_start_suffix = "start"
         self.cr_save_end_suffix = "end"
 
@@ -44,13 +44,16 @@ class Arguments:
         self.struggling_workers_percentage = 0
         self.struggling_epochs_percentage = 0
 
-        #self.net = Cifar10CNN
+        # self.net = Cifar10CNN
         self.net = FashionMNISTCNN
+        # self.net = HAPTDNN
 
         # self.train_data_loader_pickle_path = "data_loaders/fashion-mnist/train_data_loader.pickle"
         # self.test_data_loader_pickle_path = "data_loaders/fashion-mnist/test_data_loader.pickle"
         self.train_data_loader_pickle_path = "data_loaders/mnist/train_data_loader.pickle"
         self.test_data_loader_pickle_path = "data_loaders/mnist/test_data_loader.pickle"
+        # self.train_data_loader_pickle_path = "data_loaders/hapt/train_data_loader.pickle"
+        # self.test_data_loader_pickle_path = "data_loaders/hapt/test_data_loader.pickle"
         # self.data_distribution = "non_iid"
         self.data_distribution = "iid"
         self.loss_function = torch.nn.CrossEntropyLoss
@@ -60,7 +63,7 @@ class Arguments:
         self.data_path = "data"
 
     def set_algorithm(self, algorithm):
-        """Parameters: algorithm: [str] = ["fedavg", "fedprox", "fedmax"]"""
+        """Parameters: algorithm: [str] = ["fed_avg", "fed_prox", "fed_max"]"""
         self.algorithm = algorithm
 
     def get_algorithm(self):

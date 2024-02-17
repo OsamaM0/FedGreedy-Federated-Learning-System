@@ -147,6 +147,7 @@ class Client:
         server_model = copy.deepcopy(self.get_nn_parameters())
         # Set the model to training mode
         for epoch in range(epochs):
+            # train the model
             self.net.train()
             # save first training model
             if self.args.should_save_model(round) and epoch == 0:

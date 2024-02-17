@@ -37,18 +37,22 @@ def train_subset_of_clients(args, round, clients, poisoned_workers, clients_repi
 
     selected_worker = args.get_round_worker_selection_strategy().select_round_workers(
         clients,
-        poisoned_workers,
+        # poisoned_workers,
         kwargs)
 
     """ TRAINING THE CLIENTS """
-    clients_struggle = []
-    straggler_epochs = max(int(epochs * (args.get_struggling_epochs_percentage())), 1)
-    num_straggler = args.get_struggling_epochs_percentage() * len(selected_worker)
-
+    clients_struggle = [] # list of client struggle
+    straggler_epochs = max(int(epochs * (args.get_struggling_epochs_percentage())), 1) # detect number of straggler epochs >10 -> 5(S)
+    num_straggler = args.get_struggling_epochs_percentage() * len(selected_worker)     # detect number of straggler clietns > 6 -> 3(S)
+    # 1, 2, 3, 4, 5
+    # 1
     for i, client_idx in enumerate(selected_worker) :
         args.get_logger().info("Training Round #{} on client #{}", str(round), str(clients[client_idx].get_client_index()))
+
+        # itrate over not straggler clients
         if (i <= math.floor(len(selected_worker) - int(num_straggler))):
             clients[client_idx].train(round, epochs, algorithm )  # Train
+        # itrate over straggler clients
         elif algorithm == "fed_prox":
             print("Worker #{} is a straggler".format(client_idx))
             clients[client_idx].train(round, straggler_epochs, algorithm )
@@ -112,8 +116,8 @@ def run_machine_learning(clients, args):
                 clients_data[client] = [None] * (round - 1)
             if values[-1] is not None:
                 # Determine if a worker has been poisoned
-                if len(values) >= 2 and values[-2] is not None and values[-1] is not None and values[-2] - values[-1] > 2 and client not in clients_struggle:
-                    if client in prop_poisoned_workers:
+                if len(values) >= 2 and values[-2] is not None and values[-1] is not None and values[-2] - values[-1] > 5 and client not in clients_struggle:
+                    if client in prop_poisoned_workers and args.get_algorithm() == "fed_prox":
                         clients_poisoned.append(client)
                         clients_data[client].append("poisoned")
                     else:
@@ -130,7 +134,7 @@ def run_machine_learning(clients, args):
         # Evaluate the model Results
         cr_test_set_results.append(results)
     return convert_results_to_csv(cr_test_set_results), clients_data, clients_repitition
-def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_selection_strategy,data_distribution, idx):
+def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_selection_strategy, data_distribution, idx):
     log_files, results_files, models_folders, reputation_selections_files, data_worker_file = generate_experiment_ids(idx, 1)
 
     # Initialize logger
@@ -160,7 +164,7 @@ def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_
     distributed_train_dataset = load_pickle_file(args.get_train_data_loader_pickle_path())
     test_data_loader = load_pickle_file(args.get_test_data_loader_pickle_path())
 
-    plots.plot_data_distribution(distributed_train_dataset)
+    # plots.plot_data_distribution(distributed_train_dataset)
 
     # 4. Random Choose Clients and Poison their Train Datasets
     poisoned_workers = identify_random_elements(args.get_num_workers(), args.get_num_poisoned_workers())

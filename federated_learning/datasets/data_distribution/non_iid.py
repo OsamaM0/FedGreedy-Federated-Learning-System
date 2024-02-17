@@ -1,6 +1,6 @@
 import numpy as np
 
-def distribute_batches_non_iid(train_data_loader, num_workers, num_classes=10):
+def distribute_batches_non_iid(train_data_loader, num_workers, num_classes=6):
     """
     Distributes batches of training data with Non-IID Label Distribution among workers.
 
@@ -16,7 +16,7 @@ def distribute_batches_non_iid(train_data_loader, num_workers, num_classes=10):
     distributed_dataset = [[] for _ in range(num_workers)]
 
     # Generate random label subsets for each worker without replacement
-    label_subsets = [np.random.choice(num_classes, size=np.random.randint(2,4), replace=False) for _ in range(num_workers)]
+    label_subsets = [np.random.choice(num_classes, size=np.random.randint(2,3), replace=False) for _ in range(num_workers)]
 
     # Track the used labels to avoid duplicates
 

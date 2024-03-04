@@ -16,7 +16,7 @@ def distribute_batches_non_iid(train_data_loader, num_workers, num_classes=6):
     distributed_dataset = [[] for _ in range(num_workers)]
 
     # Generate random label subsets for each worker without replacement
-    label_subsets = [np.random.choice(num_classes, size=np.random.randint(2,3), replace=False) for _ in range(num_workers)]
+    label_subsets = [np.random.choice(num_classes, size=np.random.randint(1,6), replace=False) for _ in range(num_workers)]
 
     # Track the used labels to avoid duplicates
 
@@ -28,9 +28,9 @@ def distribute_batches_non_iid(train_data_loader, num_workers, num_classes=6):
         for worker_idx in worker_order:
             worker_labels = label_subsets[worker_idx]
 
-            # If any label in the worker's subset has already been used, skip this worker
-            if any(label in used_labels for label in worker_labels):
-                continue
+            # # If any label in the worker's subset has already been used, skip this worker
+            # if any(label in used_labels for label in worker_labels):
+            #     continue
 
             # Filter data and labels based on worker's labels
             filtered_indices = list(np.where(np.isin(target.numpy(), worker_labels))[0])

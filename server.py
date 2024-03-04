@@ -3,6 +3,7 @@ import math
 from loguru import logger
 
 import plots
+from federated_learning.aggregation.fed_greedy_max import avg_max_nn_parameters
 from federated_learning.arguments import Arguments
 from federated_learning.datasets import generate_data_loaders_from_distributed_dataset
 from federated_learning.aggregation import average_nn_parameters, max_nn_parameters
@@ -31,29 +32,38 @@ def train_subset_of_clients(args, round, clients, poisoned_workers, clients_repi
     kwargs["current_epoch_number"] = round
     epochs = args.get_epoch()
     algorithm = args.get_algorithm()
+    cr = args.get_num_cr()
 
     """ CLIENT SELECTION STRATEGY"""
     # Check first if there is any poisoned data you want to replace
 
     selected_worker = args.get_round_worker_selection_strategy().select_round_workers(
         clients,
-        # poisoned_workers,
+        poisoned_workers,
         kwargs)
 
     """ TRAINING THE CLIENTS """
     clients_struggle = [] # list of client struggle
     straggler_epochs = max(int(epochs * (args.get_struggling_epochs_percentage())), 1) # detect number of straggler epochs >10 -> 5(S)
     num_straggler = args.get_struggling_epochs_percentage() * len(selected_worker)     # detect number of straggler clietns > 6 -> 3(S)
-    # 1, 2, 3, 4, 5
-    # 1
+
+
     for i, client_idx in enumerate(selected_worker) :
         args.get_logger().info("Training Round #{} on client #{}", str(round), str(clients[client_idx].get_client_index()))
 
-        # itrate over not straggler clients
+        # Iterate over not straggler clients
         if (i <= math.floor(len(selected_worker) - int(num_straggler))):
-            clients[client_idx].train(round, epochs, algorithm )  # Train
-        # itrate over straggler clients
-        elif algorithm == "fed_prox":
+            # Check if the client is poisoned and the algorithm is fed_prox then train the client with straggler epochs
+            if poisoned_workers.count(client_idx) == 2 and  algorithm == "fed_greedy":
+                clients[client_idx].train(round, epochs, algorithm)
+            else:
+                # Change the algorithm name to fed_avg if the algorithm is fed_prox and not poisoned or straggler
+                algo = "fed_avg" if  algorithm in ["fed_prox", "fed_greedy"] else  algorithm
+                # Train the client with the normal epochs
+                clients[client_idx].train(round, epochs, algo )  # Train
+
+        # Iterate over straggler clients
+        elif algorithm in ["fed_prox", "fed_greedy"]:
             print("Worker #{} is a straggler".format(client_idx))
             clients[client_idx].train(round, straggler_epochs, algorithm )
             clients_struggle.append(client_idx)
@@ -73,8 +83,18 @@ def train_subset_of_clients(args, round, clients, poisoned_workers, clients_repi
     parameters = [clients[client_idx].get_nn_parameters() for client_idx in selected_worker]
 
     if algorithm == "fed_max":
-        clients_acc = [clients[client_idx].test()[0] for client_idx in selected_worker]
-        new_nn_params = max_nn_parameters(parameters, clients_acc, selected_worker)
+            clients_acc = [clients[client_idx].test()[0] for client_idx in selected_worker]
+            new_nn_params = max_nn_parameters(parameters, clients_acc, selected_worker)
+    elif algorithm == "fed_greedy":
+        print(round)
+        print(cr)
+        print((round / cr) < 0.1)
+        if (round / cr) < 0.1 :
+            new_nn_params = average_nn_parameters(parameters)
+        else:
+            print("avg_max_nn_parameters")
+            clients_acc = [clients[client_idx].test()[3] for client_idx in selected_worker]
+            new_nn_params = avg_max_nn_parameters(parameters, clients_acc, selected_worker)
     else:
         new_nn_params = average_nn_parameters(parameters)
 
@@ -148,6 +168,7 @@ def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_
     args.set_client_selection_strategy(client_selection_strategy)
     args.set_data_distribution(data_distribution)
     args.set_algorithm(algorithm)
+
     args.log()
 
     # 2. Load the Train and Test Datasets

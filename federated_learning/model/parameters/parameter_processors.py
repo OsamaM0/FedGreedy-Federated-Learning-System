@@ -5,4 +5,4 @@ def get_layer_parameters(parameters, layer_name):
     :param parameters: dict(tensor)
     :param layer_name: string
     """
-    return parameters[layer_name]
+    return parameters[layer_name].cpu()

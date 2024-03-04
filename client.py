@@ -27,6 +27,7 @@ class Client:
         # Client's arguments
         self.args = args
         self.client_idx = client_idx
+        # print("Is Cuda Available: ", torch.cuda.is_available())
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # Client's neural network

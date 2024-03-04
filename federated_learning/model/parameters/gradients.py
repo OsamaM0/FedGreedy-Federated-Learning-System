@@ -21,6 +21,7 @@ def calculate_parameter_gradients(logger, params_1, params_2):
     :param model_1: dict
     :param model_2: dict
     """
+
     logger.debug("Shape of model_1_parameters: {}".format(str(len(params_1))))
     logger.debug("Shape of model_2_parameters: {}".format(str(len(params_2))))
 

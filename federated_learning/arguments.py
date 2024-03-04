@@ -1,4 +1,4 @@
-from federated_learning.model.nets import FashionMNISTCNN, HAPTDNN
+from federated_learning.model.nets import FashionMNISTCNN, HAPTDNN, Cifar10CNN
 import torch
 import json
 
@@ -13,13 +13,13 @@ class Arguments:
         self.algorithm = "fed_avg"
         self.batch_size = 10
         self.test_batch_size = 1000
-        self.cr = 30
-        self.epoch = 1
+        self.cr = 100
+        self.epoch = 2
         self.lr = 0.01
         self.mu = 0.001
         self.momentum = 0.5
         self.cuda = True
-        self.shuffle = False
+        self.shuffle = True
         self.log_interval = 100
         self.kwargs = {}
 
@@ -48,10 +48,12 @@ class Arguments:
         self.net = FashionMNISTCNN
         # self.net = HAPTDNN
 
-        # self.train_data_loader_pickle_path = "data_loaders/fashion-mnist/train_data_loader.pickle"
-        # self.test_data_loader_pickle_path = "data_loaders/fashion-mnist/test_data_loader.pickle"
-        self.train_data_loader_pickle_path = "data_loaders/mnist/train_data_loader.pickle"
-        self.test_data_loader_pickle_path = "data_loaders/mnist/test_data_loader.pickle"
+        self.train_data_loader_pickle_path = "data_loaders/fashion-mnist/train_data_loader.pickle"
+        self.test_data_loader_pickle_path = "data_loaders/fashion-mnist/test_data_loader.pickle"
+        # self.train_data_loader_pickle_path = "data_loaders/mnist/train_data_loader.pickle"
+        # self.test_data_loader_pickle_path = "data_loaders/mnist/test_data_loader.pickle"
+        # self.train_data_loader_pickle_path = "data_loaders/cifar10/train_data_loader.pickle"
+        # self.test_data_loader_pickle_path = "data_loaders/cifar10/test_data_loader.pickle"
         # self.train_data_loader_pickle_path = "data_loaders/hapt/train_data_loader.pickle"
         # self.test_data_loader_pickle_path = "data_loaders/hapt/test_data_loader.pickle"
         # self.data_distribution = "non_iid"

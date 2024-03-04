@@ -26,10 +26,12 @@ def plot_data_distribution(train_data_loader):
 
         # Plot the distribution of labels
         axs[idx // grid_size, idx % grid_size].bar(numbers, occurrences, color=colors[idx])
-        axs[idx // grid_size, idx % grid_size].set_title(f'Client {idx+1}', fontsize=10)  # Set smaller font size
+        axs[idx // grid_size, idx % grid_size].set_title(f'Client {idx}', fontsize=10)  # Set smaller font size
         axs[idx // grid_size, idx % grid_size].set_xticks(list(dataset_classes))
         # axs[idx // grid_size, idx % grid_size].set_xlabel('Classes', fontsize=8)  # Set smaller font size
         axs[idx // grid_size, idx % grid_size].set_ylabel('Num of Samples', fontsize=8)  # Set smaller font size
+        axs[idx // grid_size, idx % grid_size].set_ylim(0, 1000)  # Set y-axis limits from 0 to 1000
+        axs[idx // grid_size, idx % grid_size].set_yticks(np.arange(0, 1000, 200))  # Set y-axis ticks from 0 to 1000 with step size 100
 
     plt.tight_layout(pad=3.0)  # Increase space between subplots
 

@@ -44,6 +44,6 @@ class Cifar10CNN(nn.Module):
         x = x.view(-1, 128 * 4 * 4)
 
         x = self.fc1(x)
-        x = F.softmax(self.fc2(x))
+        x = F.softmax(self.fc2(x), -1)
 
         return x

@@ -8,7 +8,6 @@ def get_epoch_num_from_model_file_name(model_file_name):
     """
     :param model_file_name: string
     """
-    print(model_file_name.split("_"))
 
     return int(model_file_name.split("_")[2])
 

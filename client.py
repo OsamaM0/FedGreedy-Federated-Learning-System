@@ -6,6 +6,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.metrics import classification_report
 from torch import nn
 
+from attack.label_filpping import apply_class_label_replacement
 from federated_learning.model.schedulers import MinCapableStepLR
 import os
 import numpy
@@ -41,11 +42,16 @@ class Client:
             self.args.get_scheduler_gamma(),
             self.args.get_min_lr())
 
+        self.mu = args.mu
+
         # Client's training and test data
         self.train_data_loader = train_data_loader
         self.test_data_loader = test_data_loader
 
-
+    def set_mu(self, mu):
+        self.mu = mu
+    def get_mu(self):
+        return self.mu
 
     def set_net(self, net):
         """
@@ -94,6 +100,25 @@ class Client:
         """
         return self.client_idx
 
+
+    #_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_ EVALUATION -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+    def poison_data(self, replacement_method, poison_strength):
+        """
+        Poison the client's training data.
+
+        :param poison_type: Type of poisoning to apply
+        :type poison_type: string
+        :param poison_intensity: Intensity of the poisoning
+        :type poison_intensity: float
+        """
+        self.args.get_logger().info("Poisoning client #{} with type: {} and intensity: {}".format(self.client_idx, replacement_method.__name__, poison_strength))
+
+        # Poison the training data
+        self.train_data_loader = apply_class_label_replacement(self.train_data_loader[0], self.train_data_loader[1],replacement_method, poison_strength )
+
+    #_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_ TRAINING -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
     def get_nn_parameters(self):
         """
         Return the NN's parameters.
@@ -110,10 +135,11 @@ class Client:
         self.net.load_state_dict(copy.deepcopy(new_params), strict=True)
 
     def get_attributes_name(self):
-        att_name = []
-        for (data, target) in self.train_data_loader:
-            att_name.extend([t.item() for t in target])
-        return set(att_name)
+        # att_name = []
+        # print(set(self.train_data_loader[1]))
+        # for target in self.train_data_loader[1]:
+        #     att_name.extend([t.item() for t in target])
+        return set(self.train_data_loader[1])
 
     def diff_squared_sum(self, model2):
         """Compute the squared sum of the differences between the parameters of a neural network model and another model."""
@@ -151,8 +177,8 @@ class Client:
             # train the model
             self.net.train()
             # save first training model
-            if self.args.should_save_model(round) and epoch == 0:
-                self.save_model(round, self.args.get_cr_save_start_suffix())
+            # if self.args.should_save_model(round) and epoch == 0:
+            self.save_model(round, self.args.get_cr_save_start_suffix())
 
             running_loss = 0.0
             for i, (inputs, labels) in enumerate(self.train_data_loader, 0):
@@ -164,8 +190,8 @@ class Client:
                 # forward + backward + optimize
                 outputs = self.net(inputs)
                 loss = self.loss_function(outputs, labels)
-                if (type == "fed_prox"):
-                    mu = self.args.get_mu()
+                if (type in ["fed_prox", "fed_greedy"]):
+                    mu = self.get_mu()
                     loss += (mu / 2) * self.diff_squared_sum(server_model)
                 loss.backward()
                 self.optimizer.step()
@@ -181,8 +207,8 @@ class Client:
             self.scheduler.step()
 
         # save model
-        if self.args.should_save_model(round):
-            self.save_model(round, self.args.get_cr_save_end_suffix())
+        # if self.args.should_save_model(round):
+        self.save_model(round, self.args.get_cr_save_end_suffix())
 
         return running_loss
     def save_model(self, epoch, suffix):
@@ -195,7 +221,12 @@ class Client:
             os.mkdir(self.args.get_save_model_folder_path())
 
         full_save_path = os.path.join(self.args.get_save_model_folder_path(), "model_" + str(self.client_idx) + "_" + str(epoch) + "_" + suffix + ".model")
+        self.args.get_logger().debug("Saving model to: " + full_save_path)
         torch.save(self.get_nn_parameters(), full_save_path)
+
+
+
+    #_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_ EVALUATION -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
 
     def calculate_class_precision(self, confusion_mat):
         """

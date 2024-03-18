@@ -1,4 +1,9 @@
-def default_no_change(targets, target_set):
+import copy
+
+from loguru import logger
+
+
+def default_no_change(targets, target_set, poison_strength):
     """
     :param targets: Target class IDs
     :type targets: list
@@ -8,7 +13,7 @@ def default_no_change(targets, target_set):
     """
     return targets
 
-def replace_0_with_9(targets, target_set):
+def replace_0_with_9(targets, target_set, poison_strength):
     """
     :param targets: Target class IDs
     :type targets: list
@@ -16,13 +21,13 @@ def replace_0_with_9(targets, target_set):
     :type target_set: list
     :return: new class IDs
     """
-    for idx in range(len(targets)):
+    for idx in range(len(targets)*poison_strength):
         if targets[idx] == 0:
             targets[idx] = 9
 
     return targets
 
-def replace_0_with_6(targets, target_set):
+def replace_0_with_6(targets, target_set, poison_strength):
     """
     :param targets: Target class IDs
     :type targets: list
@@ -30,13 +35,13 @@ def replace_0_with_6(targets, target_set):
     :type target_set: list
     :return: new class IDs
     """
-    for idx in range(len(targets)):
+    for idx in range(len(targets)*poison_strength):
         if targets[idx] == 0:
             targets[idx] = 6
 
     return targets
 
-def replace_4_with_6(targets, target_set):
+def global_replace(targets_labels, target_set, poison_strength):
     """
     :param targets: Target class IDs
     :type targets: list
@@ -44,11 +49,49 @@ def replace_4_with_6(targets, target_set):
     :type target_set: list
     :return: new class IDs
     """
-    for idx in range(len(targets)):
+    targets = copy.deepcopy(targets_labels)
+    for idx in range(int(len(targets)*poison_strength)):
+        # if targets_labels[idx] == list(target_set)[0]:
+            if targets_labels[idx] == 0:
+                targets[idx] = 2
+            elif targets_labels[idx] == 1:
+                targets[idx] = 9
+            elif targets_labels[idx] == 2:
+                targets[idx] = 4
+            elif targets_labels[idx] == 3:
+                targets[idx] = 7
+            elif targets_labels[idx] == 4:
+                targets[idx] = 6
+            # elif targets_labels[idx] == 5:
+            #     targets[idx] = 3
+            # elif targets_labels[idx] == 6:
+            #     targets[idx] = 0
+            # elif targets_labels[idx] == 7:
+            #     targets[idx] = 1
+            # elif targets_labels[idx] == 8:
+            #     targets[idx] = 9
+            # elif targets_labels[idx] == 9:
+            #     targets[idx] = 3
+    logger.debug("Starting global replacement")
+
+
+    return targets
+
+
+def replace_4_with_6(targets, target_set, poison_strength):
+    """
+    :param targets: Target class IDs
+    :type targets: list
+    :param target_set: Set of class IDs possible
+    :type target_set: list
+    :return: new class IDs
+    """
+    for idx in range(int(len(targets)*poison_strength)):
         if targets[idx] == 4:
             targets[idx] = 6
 
     return targets
+
 
 def replace_1_with_3(targets, target_set):
     """

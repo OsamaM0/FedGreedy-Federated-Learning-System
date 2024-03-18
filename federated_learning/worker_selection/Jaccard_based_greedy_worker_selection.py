@@ -8,23 +8,33 @@ TOTAL_LBL = set(range(10))  # assuming labels are from 0 to 9 => MNIST, CIFAR10,
 # TOTAL_LBL = set(range(6))  # assuming labels are from 0 to 5    => HAPT
 
 # Function to calculate Jaccard distance between client's labels and total labels
-def jaccard_distance(client_labels):
-    return len(client_labels.intersection(TOTAL_LBL)) / len(client_labels.union(TOTAL_LBL))
+# def jaccard_distance(client_labels):
+#     return len(client_labels.intersection(TOTAL_LBL)) / len(client_labels.union(TOTAL_LBL))
+def jaccard_similarity(set1, set2):
+    intersection = len(set1.intersection(set2))
+    union = len(set1.union(set2))
+    return intersection / union if union != 0 else 0
 
 class JaccardGreedySelectionStrategy(SelectionStrategy):
     """
     Randomly selects workers out of the list of all workers
     """
+    from functools import reduce
+
+
     def filter_and_sort_clients(self, workers):
         valid_clients = {worker_idx: set(labels.get_attributes_name()) for worker_idx, labels in enumerate(workers) if
                          set(labels.get_attributes_name()).issubset(TOTAL_LBL)}
-        sorted_clients = sorted(valid_clients, key=lambda x: jaccard_distance(valid_clients[x]), reverse=True)
+        sorted_clients = sorted(valid_clients,
+                                key=lambda x: (jaccard_similarity(valid_clients[x], TOTAL_LBL), -len(valid_clients[x])),
+                                reverse=True)
+        print("Sorted Clients: ", sorted_clients)
         return sorted_clients, valid_clients
-
     def select_round_workers(self, workers, poisoned_workers, kwargs):
         sorted_clients, valid_clients = self.filter_and_sort_clients(workers)
+        print(valid_clients)
         # Greedy algorithm to select clients covering all labels
-        selected_clients = set()
+        selected_clients = list()
         selected_labels = set()
         round_lbl_selected = 0
         while True:
@@ -32,19 +42,22 @@ class JaccardGreedySelectionStrategy(SelectionStrategy):
                 # If you get all labels, stop the loop
                 if len(selected_labels) == len(TOTAL_LBL) or ( round_lbl_selected > 1 and len(selected_clients) >= int(kwargs["NUM_WORKERS_PER_ROUND"])):
                     # If Selected Labels Get All Labels Start Collecting them from the beginning
-                    if len(selected_clients) > int(kwargs["NUM_WORKERS_PER_ROUND"]):
-                        selected_clients = list(selected_clients)[ : kwargs["NUM_WORKERS_PER_ROUND"]]
-                        print("Final Selected Worker: ", list(selected_clients))
+                    if len(selected_clients) > int(kwargs["NUM_WORKERS_PER_ROUND"]) and  round_lbl_selected >= 1:
+                        selected_clients = selected_clients[ : kwargs["NUM_WORKERS_PER_ROUND"]]
+                        print("Final Selected Worker: ", [workers[i].get_client_index() for i in  selected_clients])
                         return selected_clients
                     elif len(selected_clients) == int(kwargs["NUM_WORKERS_PER_ROUND"]):
-                        print("Final Selected Worker: ", list(selected_clients))
-                        return list(selected_clients)
-                    else:
+                        print("Final Selected Worker: ", [workers[i].get_client_index() for i in  selected_clients])
+                        return selected_clients
+                    elif len(selected_clients) < int(kwargs["NUM_WORKERS_PER_ROUND"]):
                         # Set the selected labels to empty to start collecting them from the beginning
                         selected_labels = set()
                         round_lbl_selected += 1
                         print("Round Selected Labels: ", round_lbl_selected)
                         break
+                    else:
+                        random.shuffle(workers)
+                        return self.select_round_workers(workers, poisoned_workers, kwargs)
                     #
                     # elif  len(selected_clients) < kwargs["NUM_WORKERS_PER_ROUND"]:
                     #     best_not_selected = [x for x in sorted_clients if x not in selected_clients]
@@ -55,10 +68,10 @@ class JaccardGreedySelectionStrategy(SelectionStrategy):
                 if new_labels:
                     if poisoned_workers.count(client) <= 2:
                         if client not in selected_clients:
-                            selected_clients.add(client)
+                            selected_clients.append(client)
                             selected_labels.update(new_labels)
                             print("Selected labels: ", selected_labels)
-                            print("Selected clients: ", selected_clients)
+                            print("Selected clients: ", [workers[i].get_client_index() for i in  selected_clients])
                             # Re-sort the clients and valid clients by default mode
                             sorted_clients, valid_clients = self.filter_and_sort_clients(workers)
                             break

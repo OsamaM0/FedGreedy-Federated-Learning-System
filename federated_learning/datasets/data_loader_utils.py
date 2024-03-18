@@ -4,7 +4,7 @@ import pickle
 import random
 from federated_learning.datasets.downloader.dataset import Dataset
 
-def generate_data_loaders_from_distributed_dataset(distributed_dataset, batch_size):
+def generate_data_loaders_from_distributed_dataset(clients, batch_size):
     """
     Generate data loaders from a distributed dataset.
 
@@ -13,11 +13,12 @@ def generate_data_loaders_from_distributed_dataset(distributed_dataset, batch_si
     :param batch_size: batch size for data loader
     :type batch_size: int
     """
-    data_loaders = []
-    for worker_training_data in distributed_dataset:
-        data_loaders.append(Dataset.get_data_loader_from_data(batch_size, worker_training_data[0], worker_training_data[1], shuffle=True))
+    updated_clients = []
+    for client in clients:
+        client.train_data_loader = Dataset.get_data_loader_from_data(batch_size, client.train_data_loader[0], client.train_data_loader[1], shuffle=True)
+        updated_clients.append(client)
 
-    return data_loaders
+    return updated_clients
 
 def load_train_data_loader(logger, args):
     """

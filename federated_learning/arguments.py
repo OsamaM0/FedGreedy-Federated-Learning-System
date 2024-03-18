@@ -16,7 +16,7 @@ class Arguments:
         self.cr = 100
         self.epoch = 2
         self.lr = 0.01
-        self.mu = 0.001
+        self.mu = 0.1
         self.momentum = 0.5
         self.cuda = True
         self.shuffle = True
@@ -78,6 +78,8 @@ class Arguments:
 
     def set_struggling_workers_percentage(self, struggling_workers_percentage):
         self.struggling_workers_percentage = struggling_workers_percentage
+    def get_struggling_workers_percentage(self):
+        return self.struggling_workers_percentage
     def get_struggling_epochs_percentage(self):
         return self.struggling_epochs_percentage
     def set_struggling_epochs_percentage(self, struggling_epochs_percentage):
@@ -239,7 +241,6 @@ class Arguments:
                "Scheduler Gamma: {}\n".format(self.scheduler_gamma) + \
                "Scheduler Minimum Learning Rate: {}\n".format(self.min_lr) + \
                "Client Selection Strategy: {}\n".format(self.round_worker_selection_strategy) + \
-               "Client Selection Strategy Arguments: {}\n".format(json.dumps(self.round_worker_selection_strategy_kwargs, indent=4, sort_keys=True)) + \
                "Model Saving Enabled: {}\n".format(self.save_model) + \
                "Model Saving Interval: {}\n".format(self.save_cr_interval) + \
                "Model Saving Path (Relative): {}\n".format(self.save_model_path) + \

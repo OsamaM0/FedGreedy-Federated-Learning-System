@@ -1,5 +1,8 @@
+import copy
 import math
 
+import matplotlib.pyplot as plt
+import numpy as np
 from loguru import logger
 
 import plots
@@ -15,7 +18,12 @@ from federated_learning.utils import convert_results_to_csv
 from federated_learning.utils import load_pickle_file
 from client import Client
 from defence import get_poisoned_worker
-def train_subset_of_clients(args, round, clients, poisoned_workers, clients_repitition):
+import random
+
+
+selected_worker = []
+clients = []
+def train_subset_of_clients(args, round, workers, poisoned_workers, clients_repitition, struggle_workers):
     """
     Train a subset of clients per round.
 
@@ -33,47 +41,84 @@ def train_subset_of_clients(args, round, clients, poisoned_workers, clients_repi
     epochs = args.get_epoch()
     algorithm = args.get_algorithm()
     cr = args.get_num_cr()
+    number_of_poisoned_workers = kwargs["NUM_POISONED_WORKERS"]
+    strength_of_poison = kwargs["STRENGTH_OF_POISON"]
+    replacement_method = kwargs["REPLACEMENT_METHOD"]
 
     """ CLIENT SELECTION STRATEGY"""
     # Check first if there is any poisoned data you want to replace
+    global selected_worker
+    global clients
+    if not selected_worker and algorithm in ["fed_greedy", "fed_max"]:
+        """ SELECT THE CLIENTS FOR THE ROUND """
+        selected_worker = args.get_round_worker_selection_strategy().select_round_workers(
+            workers,
+            poisoned_workers,
+            kwargs)
 
-    selected_worker = args.get_round_worker_selection_strategy().select_round_workers(
-        clients,
-        poisoned_workers,
-        kwargs)
+        """ MAKE THE CLIENTS POISONED """
+        # for poisoned_client_idx in  random.sample(selected_worker, number_of_poisoned_workers):
+        for poisoned_client_idx in selected_worker[len(selected_worker) - number_of_poisoned_workers : ]:
+            workers[poisoned_client_idx].poison_data(replacement_method, strength_of_poison)
+        clients = generate_data_loaders_from_distributed_dataset(workers, args.get_batch_size())
+
+    elif algorithm in ["fed_avg", "fed_prox"]:
+        """ SELECT THE CLIENTS FOR THE ROUND """
+        selected_worker = args.get_round_worker_selection_strategy().select_round_workers(
+            workers,
+            poisoned_workers,
+            kwargs)
+    clients = workers
+        # """ MAKE THE CLIENTS POISONED """
+        # # for poisoned_client_idx in  random.sample(selected_worker, number_of_poisoned_workers):
+        # for poisoned_client_idx in selected_worker[len(selected_worker) - number_of_poisoned_workers:]:
+        #     workers[poisoned_client_idx].poison_data(replacement_method, strength_of_poison)
+        # clients = generate_data_loaders_from_distributed_dataset(workers, args.get_batch_size())
+
+
 
     """ TRAINING THE CLIENTS """
     clients_struggle = [] # list of client struggle
-    straggler_epochs = max(int(epochs * (args.get_struggling_epochs_percentage())), 1) # detect number of straggler epochs >10 -> 5(S)
-    num_straggler = args.get_struggling_epochs_percentage() * len(selected_worker)     # detect number of straggler clietns > 6 -> 3(S)
-
+    straggler_epochs = max(int(epochs * (1 - args.get_struggling_epochs_percentage())), 1) # detect number of straggler epochs >10 -> 5(S)
+    num_straggler = np.ceil(args.get_struggling_workers_percentage() * len(selected_worker))     # detect number of straggler clietns > 6 -> 3(S)
 
     for i, client_idx in enumerate(selected_worker) :
-        args.get_logger().info("Training Round #{} on client #{}", str(round), str(clients[client_idx].get_client_index()))
+        client_id = clients[client_idx].get_client_index()
+        client = clients[client_idx]
 
-        # Iterate over not straggler clients
-        if (i <= math.floor(len(selected_worker) - int(num_straggler))):
-            # Check if the client is poisoned and the algorithm is fed_prox then train the client with straggler epochs
-            if poisoned_workers.count(client_idx) == 2 and  algorithm == "fed_greedy":
-                clients[client_idx].train(round, epochs, algorithm)
+        if client_id not in struggle_workers:
+            args.get_logger().info("Training Round #{} on client #{}", str(round), str(client_id))
+
+            # Iterate over not straggler clients
+            if (i <= math.floor(len(selected_worker) - int(num_straggler))):
+                # Check if the client is poisoned and the algorithm is fed_greedy then train the client
+                if client_id in poisoned_workers:
+                    client.set_mu( client.get_mu()*2 )
+                    logger.info("Worker #{} is a poisoned worker during training", client_id)
+                    logger.info("Mu #{} is: ", client.mu)
+                    client.train(round, epochs, algorithm)  # Train
+                # elif client.get_mu() > args.get_mu()*2:
+                elif client.get_mu() > args.get_mu()*2:
+                    client.train(round, epochs, algorithm)  # Train
+                else:
+                    # Change the algorithm name to fed_avg if the algorithm is fed_greedy and not poisoned or straggler
+                    client.train(round, epochs, "fed_avg" )  # Train
+
+            # Iterate over straggler clients
+            elif algorithm in ["fed_greedy", "fed_prox"]:
+                print("Worker #{} is a straggler during training".format(client_id))
+                client.train(round, straggler_epochs, algorithm )
+                clients_struggle.append(client_id)
+
+            # Evaluation
+            if client_id in clients_repitition.keys():
+                clients_repitition[client_id].append(client.test()[0])
             else:
-                # Change the algorithm name to fed_avg if the algorithm is fed_prox and not poisoned or straggler
-                algo = "fed_avg" if  algorithm in ["fed_prox", "fed_greedy"] else  algorithm
-                # Train the client with the normal epochs
-                clients[client_idx].train(round, epochs, algo )  # Train
-
-        # Iterate over straggler clients
-        elif algorithm in ["fed_prox", "fed_greedy"]:
-            print("Worker #{} is a straggler".format(client_idx))
-            clients[client_idx].train(round, straggler_epochs, algorithm )
-            clients_struggle.append(client_idx)
-
-        # Evaluation
-        if client_idx in clients_repitition.keys():
-            clients_repitition[client_idx].append(clients[client_idx].test()[0])
+                clients_repitition[client_id] = [None] * (round - 1) + [client.test()[0]]
         else:
-            clients_repitition[client_idx] = [None] * (round - 1) + [clients[client_idx].test()[0]]
+            print("Worker #{} is a straggler".format(client_id))
 
+    """ CALCULATE THE REPETITION OF THE CLIENTS"""
     for client_idx in clients_repitition.keys():
         if len(clients_repitition[client_idx]) < round:
             clients_repitition[client_idx].append(None)
@@ -81,20 +126,20 @@ def train_subset_of_clients(args, round, clients, poisoned_workers, clients_repi
     """ MODEL AGGREGATION STRATEGY"""
     args.get_logger().info("Aggregate client parameters")
     parameters = [clients[client_idx].get_nn_parameters() for client_idx in selected_worker]
+    clients_acc = [clients[client_idx].test()[0] for client_idx in selected_worker]
 
     if algorithm == "fed_max":
-            clients_acc = [clients[client_idx].test()[0] for client_idx in selected_worker]
             new_nn_params = max_nn_parameters(parameters, clients_acc, selected_worker)
+
     elif algorithm == "fed_greedy":
-        print(round)
-        print(cr)
-        print((round / cr) < 0.1)
-        if (round / cr) < 0.1 :
+        if (round / cr) < 1 :
+            parameters = [clients[client_idx].get_nn_parameters() for client_idx in selected_worker if clients[client_idx].test()[0] > sum(clients_acc) / len(clients_acc) - 2]
             new_nn_params = average_nn_parameters(parameters)
         else:
             print("avg_max_nn_parameters")
             clients_acc = [clients[client_idx].test()[3] for client_idx in selected_worker]
             new_nn_params = avg_max_nn_parameters(parameters, clients_acc, selected_worker)
+
     else:
         new_nn_params = average_nn_parameters(parameters)
 
@@ -116,7 +161,7 @@ def create_clients(args, train_data_loaders, test_data_loader):
 
     return clients
 
-def run_machine_learning(clients, args):
+def run_machine_learning(args, distributed_train_dataset, test_data_loader,  struggle_workers):
     """
     Complete machine learning over a series of clients.
     """
@@ -124,22 +169,38 @@ def run_machine_learning(clients, args):
     clients_repitition = {}
     clients_poisoned = []
     clients_data = {}
+    struggle_workers = [40, 7, 1, 47, 17, 15, 14, 8, 6, 43, 34, 5, 37, 27, 2, 13, 32, 38, 35, 12, 45, 41, 44, 26, 28]
+    logger.info("Struggle Workers: {}", struggle_workers)
+    round = 0
 
-    for round in range(1, args.get_num_cr() + 1):
-        results, clients_repitition, clients_struggle = train_subset_of_clients(args, round ,clients, clients_poisoned, clients_repitition)
+    for c_round in range(1, args.get_num_cr() + 1):
+        clients = create_clients(args, distributed_train_dataset, test_data_loader)
 
-        prop_poisoned_workers = get_poisoned_worker(round, args.get_save_model_folder_path() )
+        if args.get_algorithm() in ["fed_greedy", "fed_max"]:
+            clients = [client for client in clients if client.get_client_index() not in struggle_workers]
 
+        results, clients_repitition, clients_struggle = train_subset_of_clients(args, copy.deepcopy(c_round) ,clients, clients_poisoned, clients_repitition, struggle_workers)
+
+        if args.get_algorithm() == "fed_greedy" and c_round > 2:
+                print(args.get_save_model_folder_path())
+                print(args.get_algorithm())
+                print(c_round)
+                prop_poisoned_workers = get_poisoned_worker(c_round, args.get_save_model_folder_path())
+        else:
+            prop_poisoned_workers = []
+
+        clients_poisoned = []
         # Determine which workers were selected
         for client, values in clients_repitition.items():
             if client not in clients_data:
-                clients_data[client] = [None] * (round - 1)
+                clients_data[client] = [None] * (c_round - 1)
             if values[-1] is not None:
                 # Determine if a worker has been poisoned
-                if len(values) >= 2 and values[-2] is not None and values[-1] is not None and values[-2] - values[-1] > 5 and client not in clients_struggle:
-                    if client in prop_poisoned_workers and args.get_algorithm() == "fed_prox":
+                if len(values) >= 2 and values[-2] is not None  and values[-2] - values[-1] > 3 and client not in clients_struggle:
+                    if client in prop_poisoned_workers:
                         clients_poisoned.append(client)
                         clients_data[client].append("poisoned")
+                        logger.info("Worker #{} Added to the poisoned workers", client)
                     else:
                         clients_data[client].append("normal")
                 # Determine if a worker is a straggler
@@ -154,7 +215,17 @@ def run_machine_learning(clients, args):
         # Evaluate the model Results
         cr_test_set_results.append(results)
     return convert_results_to_csv(cr_test_set_results), clients_data, clients_repitition
-def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_selection_strategy, data_distribution, idx):
+
+
+
+
+
+
+
+
+
+def run_exp(replacement_method, num_poisoned_worker, KWARGS,algorithm, client_selection_strategy, data_distribution, idx):
+    print(idx)
     log_files, results_files, models_folders, reputation_selections_files, data_worker_file = generate_experiment_ids(idx, 1)
 
     # Initialize logger
@@ -163,12 +234,15 @@ def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_
     # 1. Get the User Arguments
     args = Arguments(logger)
     args.set_model_save_path(models_folders[0])
-    args.set_num_poisoned_workers(num_poisoned_workers)
+    args.set_num_poisoned_workers(num_poisoned_worker)
     args.set_round_worker_selection_strategy_kwargs(KWARGS)
     args.set_client_selection_strategy(client_selection_strategy)
     args.set_data_distribution(data_distribution)
     args.set_algorithm(algorithm)
-
+    global selected_worker
+    selected_worker = []
+    global  clients
+    clients = []
     args.log()
 
     # 2. Load the Train and Test Datasets
@@ -184,26 +258,23 @@ def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_
 
     distributed_train_dataset = load_pickle_file(args.get_train_data_loader_pickle_path())
     test_data_loader = load_pickle_file(args.get_test_data_loader_pickle_path())
-
+    #
     # plots.plot_data_distribution(distributed_train_dataset)
 
     # 4. Random Choose Clients and Poison their Train Datasets
+    num_poisoned_workers = KWARGS["NUM_POISONED_WORKERS"]
+    strength_of_poison = KWARGS["STRENGTH_OF_POISON"]
+
+
     poisoned_workers = identify_random_elements(args.get_num_workers(), args.get_num_poisoned_workers())
-    distributed_train_dataset = poison_data(logger, distributed_train_dataset, args.get_num_workers(), poisoned_workers, replacement_method)
-
-    # 5. Generate Dataloader for Both poisend and trained datasets
-    train_data_loaders = generate_data_loaders_from_distributed_dataset(distributed_train_dataset, args.get_batch_size())
-
-    # 6. Assign Train & Test Dataset to Clients
-    clients = create_clients(args, train_data_loaders, test_data_loader)
+    distributed_train_dataset = poison_data(logger, distributed_train_dataset, args.get_num_workers(), poisoned_workers, replacement_method, strength_of_poison)
 
     # 7. Start Federated Learning
-    results,  worker_data, worker_reputation = run_machine_learning(clients, args)
+    results,  worker_data, worker_reputation = run_machine_learning(args, distributed_train_dataset, test_data_loader, poisoned_workers)
 
     # 8. Save Results
     save_results(results, results_files[0])
     save_results(worker_reputation, reputation_selections_files[0])
-    print(worker_data)
     save_results(worker_data, data_worker_file[0])
 
     logger.remove(handler)

@@ -11,14 +11,15 @@ class Arguments:
     def __init__(self, logger):
         self.logger = logger
         self.algorithm = "fed_avg"
-        self.batch_size = 10
+        self.batch_size = 6
         self.test_batch_size = 1000
-        self.cr = 100
+        self.lbl_num = 10
+        self.cr = 3
         self.epoch = 2
         self.lr = 0.01
-        self.mu = 0.1
+        self.mu = 0.001
         self.momentum = 0.5
-        self.cuda = True
+        self.cuda = False
         self.shuffle = True
         self.log_interval = 100
         self.kwargs = {}

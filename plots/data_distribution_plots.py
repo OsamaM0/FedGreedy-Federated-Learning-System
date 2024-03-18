@@ -6,7 +6,7 @@ import math
 
 def plot_data_distribution(train_data_loader):
     num_clients = len(train_data_loader)
-    dataset_classes = set(range(10))  # Get the unique classes in the dataset
+    dataset_classes = set(range(6))  # Get the unique classes in the dataset
     print(dataset_classes)
     grid_size = (math.ceil(math.sqrt(num_clients)))  # Calculate the size of the grid and round up
 
@@ -30,8 +30,8 @@ def plot_data_distribution(train_data_loader):
         axs[idx // grid_size, idx % grid_size].set_xticks(list(dataset_classes))
         # axs[idx // grid_size, idx % grid_size].set_xlabel('Classes', fontsize=8)  # Set smaller font size
         axs[idx // grid_size, idx % grid_size].set_ylabel('Num of Samples', fontsize=8)  # Set smaller font size
-        axs[idx // grid_size, idx % grid_size].set_ylim(0, 1000)  # Set y-axis limits from 0 to 1000
-        axs[idx // grid_size, idx % grid_size].set_yticks(np.arange(0, 1000, 200))  # Set y-axis ticks from 0 to 1000 with step size 100
+        axs[idx // grid_size, idx % grid_size].set_ylim(0, 200)  # Set y-axis limits from 0 to 1000
+        axs[idx // grid_size, idx % grid_size].set_yticks(np.arange(0, 200, 50))  # Set y-axis ticks from 0 to 1000 with step size 100
 
     plt.tight_layout(pad=3.0)  # Increase space between subplots
 

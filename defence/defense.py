@@ -27,6 +27,10 @@ from federated_learning.arguments import Arguments
 from client import Client
 
 EXP_INFO_PATH = "logs/1823.log"
+# The layer of the NNs that you want to investigate.
+#   If you are using the provided Fashion MNIST CNN, this should be "fc.weight"
+#   If you are using the provided Cifar 10 CNN, this should be "fc2.weight"
+#   If you are using the provided HAPT DNN, this should be "softmax.weight"
 LAYER_NAME = "fc.weight"
 CLASS_NUM = 4
 POISONED_WORKER_IDS = []

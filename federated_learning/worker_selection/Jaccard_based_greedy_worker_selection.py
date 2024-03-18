@@ -45,10 +45,10 @@ class JaccardGreedySelectionStrategy(SelectionStrategy):
                     if len(selected_clients) > int(kwargs["NUM_WORKERS_PER_ROUND"]) and  round_lbl_selected >= 1:
                         selected_clients = selected_clients[ : kwargs["NUM_WORKERS_PER_ROUND"]]
                         print("Final Selected Worker: ", [workers[i].get_client_index() for i in  selected_clients])
-                        return selected_clients
+                        return [workers[i].get_client_index() for i in  selected_clients]
                     elif len(selected_clients) == int(kwargs["NUM_WORKERS_PER_ROUND"]):
                         print("Final Selected Worker: ", [workers[i].get_client_index() for i in  selected_clients])
-                        return selected_clients
+                        return [workers[i].get_client_index() for i in  selected_clients]
                     elif len(selected_clients) < int(kwargs["NUM_WORKERS_PER_ROUND"]):
                         # Set the selected labels to empty to start collecting them from the beginning
                         selected_labels = set()
@@ -58,10 +58,7 @@ class JaccardGreedySelectionStrategy(SelectionStrategy):
                     else:
                         random.shuffle(workers)
                         return self.select_round_workers(workers, poisoned_workers, kwargs)
-                    #
-                    # elif  len(selected_clients) < kwargs["NUM_WORKERS_PER_ROUND"]:
-                    #     best_not_selected = [x for x in sorted_clients if x not in selected_clients]
-                    #     selected_clients.add(best_not_selected[0])
+
 
                 # Take the client if it is not launch attack more than 2 times and it has labels that are not already selected
                 new_labels = valid_clients[client] - selected_labels

@@ -29,7 +29,7 @@ class Client:
         self.args = args
         self.client_idx = client_idx
         # print("Is Cuda Available: ", torch.cuda.is_available())
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device('cpu' if torch.cuda.is_available() else 'cpu')
 
         # Client's neural network
         self.set_net(self.load_default_model())
@@ -134,12 +134,18 @@ class Client:
         """
         self.net.load_state_dict(copy.deepcopy(new_params), strict=True)
 
+    # def get_attributes_name(self):
+    #     # att_name = []
+    #     # print(set(self.train_data_loader[1]))
+    #     # for target in self.train_data_loader[1]:
+    #     #     att_name.extend([t.item() for t in target])
+    #     return set(self.train_data_loader[1])
+
     def get_attributes_name(self):
-        # att_name = []
-        # print(set(self.train_data_loader[1]))
-        # for target in self.train_data_loader[1]:
-        #     att_name.extend([t.item() for t in target])
-        return set(self.train_data_loader[1])
+        att_name = []
+        for (data, target) in self.train_data_loader:
+            att_name.extend([t.item() for t in target])
+        return set(att_name)
 
     def diff_squared_sum(self, model2):
         """Compute the squared sum of the differences between the parameters of a neural network model and another model."""

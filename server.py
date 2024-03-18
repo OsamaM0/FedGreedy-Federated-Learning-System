@@ -23,7 +23,7 @@ import random
 
 selected_worker = []
 clients = []
-def train_subset_of_clients(args, round, workers, poisoned_workers, clients_repitition, struggle_workers):
+def train_subset_of_clients(args, round, poisoned_workers, clients_repitition, struggle_workers):
     """
     Train a subset of clients per round.
 
@@ -41,41 +41,19 @@ def train_subset_of_clients(args, round, workers, poisoned_workers, clients_repi
     epochs = args.get_epoch()
     algorithm = args.get_algorithm()
     cr = args.get_num_cr()
-    number_of_poisoned_workers = kwargs["NUM_POISONED_WORKERS"]
-    strength_of_poison = kwargs["STRENGTH_OF_POISON"]
-    replacement_method = kwargs["REPLACEMENT_METHOD"]
 
     """ CLIENT SELECTION STRATEGY"""
     # Check first if there is any poisoned data you want to replace
     global selected_worker
     global clients
-    if not selected_worker and algorithm in ["fed_greedy", "fed_max"]:
+
+    """ SELECT THE CLIENTS FOR THE ROUND """
+    if algorithm in ["fed_avg", "fed_prox"]:
         """ SELECT THE CLIENTS FOR THE ROUND """
         selected_worker = args.get_round_worker_selection_strategy().select_round_workers(
-            workers,
+            clients,
             poisoned_workers,
             kwargs)
-
-        """ MAKE THE CLIENTS POISONED """
-        # for poisoned_client_idx in  random.sample(selected_worker, number_of_poisoned_workers):
-        for poisoned_client_idx in selected_worker[len(selected_worker) - number_of_poisoned_workers : ]:
-            workers[poisoned_client_idx].poison_data(replacement_method, strength_of_poison)
-        clients = generate_data_loaders_from_distributed_dataset(workers, args.get_batch_size())
-
-    elif algorithm in ["fed_avg", "fed_prox"]:
-        """ SELECT THE CLIENTS FOR THE ROUND """
-        selected_worker = args.get_round_worker_selection_strategy().select_round_workers(
-            workers,
-            poisoned_workers,
-            kwargs)
-    clients = workers
-        # """ MAKE THE CLIENTS POISONED """
-        # # for poisoned_client_idx in  random.sample(selected_worker, number_of_poisoned_workers):
-        # for poisoned_client_idx in selected_worker[len(selected_worker) - number_of_poisoned_workers:]:
-        #     workers[poisoned_client_idx].poison_data(replacement_method, strength_of_poison)
-        # clients = generate_data_loaders_from_distributed_dataset(workers, args.get_batch_size())
-
-
 
     """ TRAINING THE CLIENTS """
     clients_struggle = [] # list of client struggle
@@ -133,7 +111,7 @@ def train_subset_of_clients(args, round, workers, poisoned_workers, clients_repi
 
     elif algorithm == "fed_greedy":
         if (round / cr) < 1 :
-            parameters = [clients[client_idx].get_nn_parameters() for client_idx in selected_worker if clients[client_idx].test()[0] > sum(clients_acc) / len(clients_acc) - 2]
+            parameters = [clients[client_idx].get_nn_parameters() for client_idx in selected_worker if clients[client_idx].test()[0] > sum(clients_acc) / len(clients_acc) - 4]
             new_nn_params = average_nn_parameters(parameters)
         else:
             print("avg_max_nn_parameters")
@@ -161,7 +139,7 @@ def create_clients(args, train_data_loaders, test_data_loader):
 
     return clients
 
-def run_machine_learning(args, distributed_train_dataset, test_data_loader,  struggle_workers):
+def run_machine_learning(args, struggle_workers):
     """
     Complete machine learning over a series of clients.
     """
@@ -169,22 +147,14 @@ def run_machine_learning(args, distributed_train_dataset, test_data_loader,  str
     clients_repitition = {}
     clients_poisoned = []
     clients_data = {}
-    struggle_workers = [40, 7, 1, 47, 17, 15, 14, 8, 6, 43, 34, 5, 37, 27, 2, 13, 32, 38, 35, 12, 45, 41, 44, 26, 28]
-    logger.info("Struggle Workers: {}", struggle_workers)
-    round = 0
+
 
     for c_round in range(1, args.get_num_cr() + 1):
-        clients = create_clients(args, distributed_train_dataset, test_data_loader)
 
-        if args.get_algorithm() in ["fed_greedy", "fed_max"]:
-            clients = [client for client in clients if client.get_client_index() not in struggle_workers]
+        results, clients_repitition, clients_struggle = train_subset_of_clients(args, copy.deepcopy(c_round) , clients_poisoned, clients_repitition, struggle_workers)
 
-        results, clients_repitition, clients_struggle = train_subset_of_clients(args, copy.deepcopy(c_round) ,clients, clients_poisoned, clients_repitition, struggle_workers)
-
-        if args.get_algorithm() == "fed_greedy" and c_round > 2:
-                print(args.get_save_model_folder_path())
-                print(args.get_algorithm())
-                print(c_round)
+        # Track the poisoned workers after each epoch
+        if args.get_algorithm() == "fed_greedy" and c_round > 1:
                 prop_poisoned_workers = get_poisoned_worker(c_round, args.get_save_model_folder_path())
         else:
             prop_poisoned_workers = []
@@ -224,17 +194,16 @@ def run_machine_learning(args, distributed_train_dataset, test_data_loader,  str
 
 
 
-def run_exp(replacement_method, num_poisoned_worker, KWARGS,algorithm, client_selection_strategy, data_distribution, idx):
+def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_selection_strategy, data_distribution, idx):
     print(idx)
     log_files, results_files, models_folders, reputation_selections_files, data_worker_file = generate_experiment_ids(idx, 1)
 
     # Initialize logger
     handler = logger.add(log_files[0], enqueue=True)
-
-    # 1. Get the User Arguments
+    # Get the User Arguments
     args = Arguments(logger)
     args.set_model_save_path(models_folders[0])
-    args.set_num_poisoned_workers(num_poisoned_worker)
+    args.set_num_poisoned_workers(num_poisoned_workers)
     args.set_round_worker_selection_strategy_kwargs(KWARGS)
     args.set_client_selection_strategy(client_selection_strategy)
     args.set_data_distribution(data_distribution)
@@ -244,9 +213,16 @@ def run_exp(replacement_method, num_poisoned_worker, KWARGS,algorithm, client_se
     global  clients
     clients = []
     args.log()
+    attack_strength = KWARGS["STRENGTH_OF_POISON"]
+    struggle_workers = [40, 7, 1, 47, 17, 15, 14, 8, 6, 43, 34, 5, 37, 27, 2, 13, 32, 38, 35, 12, 45, 41, 44, 26, 28]
+    #===================================================================================================================
+    #========================================= Start the Federated Learning ============================================
+    #===================================================================================================================
 
-    # 2. Load the Train and Test Datasets
+    #--------------------------------------------------- Client Selection Strategy -------------------------------------
+    # 1.1. Load the Train and Test Datasets
     data_distribution = args.get_data_distribution()
+
     train_data_loader_path = args.get_train_data_loader_pickle_path().split("/")
     train_data_loader_path.insert(-1, data_distribution)
     args.set_train_data_loader_pickle_path("/".join(train_data_loader_path))
@@ -261,16 +237,35 @@ def run_exp(replacement_method, num_poisoned_worker, KWARGS,algorithm, client_se
     #
     # plots.plot_data_distribution(distributed_train_dataset)
 
-    # 4. Random Choose Clients and Poison their Train Datasets
-    num_poisoned_workers = KWARGS["NUM_POISONED_WORKERS"]
-    strength_of_poison = KWARGS["STRENGTH_OF_POISON"]
+    # 1.2. Poison Data for clients and create the data loaders
+    if args.get_algorithm() in ["fed_greedy", "fed_max"]:
+        # Distribute the data to the clients for clients selection
+        data_distribution = generate_data_loaders_from_distributed_dataset(distributed_train_dataset, args.get_batch_size())
+        clients = create_clients(args, data_distribution, test_data_loader)
+        # Remove the struggling workers
+        logger.info("Struggle Workers: {}", struggle_workers)
+        clients_temp = [client for client in clients if client.get_client_index() not in struggle_workers]
+        logger.info("Clients: {}", [client.get_client_index() for client in clients_temp] )
+        selected_worker = args.get_round_worker_selection_strategy().select_round_workers(
+            clients_temp,
+            [],
+            KWARGS)
+        # After selecting the clients, poison the data of the selected clients
+        poisoned_workers_idx = selected_worker[len(selected_worker) - KWARGS["NUM_POISONED_WORKERS"]:]
+        logger.info("Poisoned Workers: {}", poisoned_workers_idx)
+        distributed_train_dataset = poison_data(logger, distributed_train_dataset, args.get_num_workers(),args.lbl_num, poisoned_workers_idx, replacement_method, attack_strength)
+        data_distribution = generate_data_loaders_from_distributed_dataset(distributed_train_dataset, args.get_batch_size())
+        clients = create_clients(args, data_distribution, test_data_loader)
 
-
-    poisoned_workers = identify_random_elements(args.get_num_workers(), args.get_num_poisoned_workers())
-    distributed_train_dataset = poison_data(logger, distributed_train_dataset, args.get_num_workers(), poisoned_workers, replacement_method, strength_of_poison)
+    elif args.get_algorithm() in ["fed_avg", "fed_prox"]:
+        poisoned_workers = identify_random_elements(args.get_num_workers(), args.get_num_poisoned_workers())
+        logger.info("Poisoned Workers: {}", poisoned_workers)
+        distributed_train_dataset = poison_data(logger, distributed_train_dataset, args.get_num_workers(),args.lbl_num, poisoned_workers, replacement_method, attack_strength)
+        data_distribution = generate_data_loaders_from_distributed_dataset(distributed_train_dataset, args.get_batch_size())
+        clients = create_clients(args, data_distribution, test_data_loader)
 
     # 7. Start Federated Learning
-    results,  worker_data, worker_reputation = run_machine_learning(args, distributed_train_dataset, test_data_loader, poisoned_workers)
+    results,  worker_data, worker_reputation = run_machine_learning(args, struggle_workers)
 
     # 8. Save Results
     save_results(results, results_files[0])

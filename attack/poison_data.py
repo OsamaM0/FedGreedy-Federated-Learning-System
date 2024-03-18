@@ -1,7 +1,7 @@
 from attack.label_filpping.label_replacement import apply_class_label_replacement
 from federated_learning.utils.client_utils import log_client_data_statistics
 
-def poison_data(logger, distributed_dataset, num_workers, poisoned_worker_ids, replacement_method, strength_of_poison):
+def poison_data(logger, distributed_dataset, num_workers, num_lbl, poisoned_worker_ids, replacement_method, strength_of_poison):
     """
     Poison worker data
 
@@ -19,7 +19,7 @@ def poison_data(logger, distributed_dataset, num_workers, poisoned_worker_ids, r
     # TODO: Add support for multiple replacement methods?
     poisoned_dataset = []
 
-    class_labels = list(set(range(10)))
+    class_labels = list(set(range(num_lbl)))
 
     logger.info("Poisoning data for workers: {}".format(str(poisoned_worker_ids)))
 

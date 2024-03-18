@@ -20,7 +20,7 @@ class PaperSelectionStrategy(SelectionStrategy):
     """
     def select_round_workers(self, workers, poisoned_workers, kwargs):
         # Database Reputation
-        jaccard_sim = [jaccard_similarity(list(range(10)), worker.get_attributes_name()) for worker in workers]
+        jaccard_sim = [jaccard_similarity(list(range(6)), worker.get_attributes_name()) for worker in workers]
         n_largest_jaccard_sim = n_largest_index(jaccard_sim, kwargs["NUM_WORKERS_PER_ROUND"])
         print(n_largest_jaccard_sim)
 

@@ -54,6 +54,7 @@ def train_subset_of_clients(args, round, poisoned_workers, clients_repitition, s
             clients,
             poisoned_workers,
             kwargs)
+        logger.info("Clients: {}", [clients[client_idx].get_client_index() for client_idx in selected_worker])
 
     """ TRAINING THE CLIENTS """
     clients_struggle = [] # list of client struggle

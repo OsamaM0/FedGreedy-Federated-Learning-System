@@ -1,4 +1,6 @@
 import random
+# Set the random seed
+random.seed(0)
 
 def identify_random_elements(max, num_random_elements):
     """

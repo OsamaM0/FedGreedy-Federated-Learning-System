@@ -1,6 +1,5 @@
 import random
-# Set the random seed
-random.seed(0)
+
 
 def identify_random_elements(max, num_random_elements):
     """
@@ -12,6 +11,9 @@ def identify_random_elements(max, num_random_elements):
     :type num_random_elements: int
     :return: list
     """
+    # Set the random seed
+    random.seed(0)
+    
     if num_random_elements > max:
         return []
 

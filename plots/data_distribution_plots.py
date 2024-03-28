@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 
-def plot_data_distribution(train_data_loader):
+def plot_data_distribution(train_data_loader, lbl_classes):
     num_clients = len(train_data_loader)
-    dataset_classes = set(range(6))  # Get the unique classes in the dataset
+    dataset_classes = set(range(lbl_classes))  # Get the unique classes in the dataset
     print(dataset_classes)
     grid_size = (math.ceil(math.sqrt(num_clients)))  # Calculate the size of the grid and round up
 

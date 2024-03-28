@@ -17,27 +17,27 @@ if __name__ == '__main__':
     REPLACEMENT_METHOD = global_replace_hapt
     NUM_WORKER_PER_ROUND = 10
 
-
-    for attacker_num in range(5,0,-1):
-        for strength_num in range(9,0,-1):
-            strength_num = strength_num * 0.1
-            for algorithm in ["fed_greedy", "fed_avg", "fed_prox",  "fed_max"]:
-                for data_distribution in ["iid","non_iid"]:
-                    experiment_id =[f"{attacker_num}_{strength_num}", f"{algorithm}_{data_distribution}"]
-                    logger.info(f"Running experiment {experiment_id}")
-                    KWARGS = {
-                        "NUM_WORKERS_PER_ROUND": NUM_WORKER_PER_ROUND,
-                        "NUM_POISONED_WORKERS": attacker_num,
-                        "STRENGTH_OF_POISON": strength_num,
-                        "REPLACEMENT_METHOD": global_replace_hapt
-                    }
-                    NUM_POISONED_WORKERS =  int((attacker_num / NUM_WORKER_PER_ROUND ) * 50)
-                    ALGORITHM = algorithm
-                    if ALGORITHM == "fed_greedy":
-                        run_exp(REPLACEMENT_METHOD, NUM_POISONED_WORKERS, KWARGS, ALGORITHM, JaccardGreedySelectionStrategy(),data_distribution, experiment_id)
-                    elif ALGORITHM == "fed_avg":
-                        run_exp(REPLACEMENT_METHOD, NUM_POISONED_WORKERS, KWARGS, ALGORITHM, RandomSelectionStrategy(),data_distribution, experiment_id)
-                    elif ALGORITHM == "fed_prox":
-                        run_exp(REPLACEMENT_METHOD, NUM_POISONED_WORKERS, KWARGS, ALGORITHM, RandomSelectionStrategy(),data_distribution, experiment_id)
-                    elif ALGORITHM == "fed_max":
-                        run_exp(REPLACEMENT_METHOD, NUM_POISONED_WORKERS, KWARGS, ALGORITHM, PaperSelectionStrategy(),data_distribution, experiment_id)
+    for dataset in [ 'FASHION_MNIST', 'HAPT']:
+        for attacker_num in [5,4,3,2,1] :
+            for strength_num in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+                for algorithm in ["fed_greedy", "fed_avg", "fed_prox",  "fed_max"]:
+                    for data_distribution in ["iid","non_iid"]:
+                        experiment_id =[f"{attacker_num}_{strength_num}", f"{dataset}-{algorithm}_{data_distribution}"]
+                        logger.info(f"Running experiment {experiment_id}")
+                        KWARGS = {
+                            "NUM_WORKERS_PER_ROUND": NUM_WORKER_PER_ROUND,
+                            "NUM_POISONED_WORKERS": attacker_num,
+                            "STRENGTH_OF_POISON": strength_num,
+                            "REPLACEMENT_METHOD": global_replace_hapt,
+                            "LABELS_NUM": 6 if dataset == 'HAPT' else 10
+                        }
+                        NUM_POISONED_WORKERS =  int((attacker_num / NUM_WORKER_PER_ROUND ) * 50)
+                        ALGORITHM = algorithm
+                        if ALGORITHM == "fed_greedy":
+                            run_exp(REPLACEMENT_METHOD, NUM_POISONED_WORKERS, KWARGS, ALGORITHM, JaccardGreedySelectionStrategy(),data_distribution, experiment_id)
+                        elif ALGORITHM == "fed_avg":
+                            run_exp(REPLACEMENT_METHOD, NUM_POISONED_WORKERS, KWARGS, ALGORITHM, RandomSelectionStrategy(),data_distribution, experiment_id)
+                        elif ALGORITHM == "fed_prox":
+                            run_exp(REPLACEMENT_METHOD, NUM_POISONED_WORKERS, KWARGS, ALGORITHM, RandomSelectionStrategy(),data_distribution, experiment_id)
+                        elif ALGORITHM == "fed_max":
+                            run_exp(REPLACEMENT_METHOD, NUM_POISONED_WORKERS, KWARGS, ALGORITHM, PaperSelectionStrategy(),data_distribution, experiment_id)

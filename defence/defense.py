@@ -31,7 +31,7 @@ EXP_INFO_PATH = "logs/1823.log"
 #   If you are using the provided Fashion MNIST CNN, this should be "fc.weight"
 #   If you are using the provided Cifar 10 CNN, this should be "fc2.weight"
 #   If you are using the provided HAPT DNN, this should be "softmax.weight"
-LAYER_NAME = "fc.weight"
+LAYER_NAME = "fc_f.weight"
 CLASS_NUM = 4
 POISONED_WORKER_IDS = []
 SAVE_NAME = "defense_results.jpg"

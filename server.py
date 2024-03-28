@@ -4,7 +4,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
-
+from federated_learning.model.nets import FashionMNISTCNN, HAPTDNN
 import plots
 from federated_learning.aggregation.fed_greedy_max import avg_max_nn_parameters
 from federated_learning.arguments import Arguments
@@ -216,6 +216,16 @@ def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_
     args.log()
     attack_strength = KWARGS["STRENGTH_OF_POISON"]
     struggle_workers = [40, 7, 1, 47, 17, 15, 14, 8, 6, 43, 34, 5, 37, 27, 2, 13, 32, 38, 35, 12, 45, 41, 44, 26, 28]
+    lbl_classes = KWARGS["LABELS_NUM"]
+    if lbl_classes == 6:
+        args.net = HAPTDNN
+        args.train_data_loader_pickle_path = "data_loaders/hapt/train_data_loader.pickle"
+        args.test_data_loader_pickle_path = "data_loaders/hapt/test_data_loader.pickle"
+
+    else:
+        args.net = FashionMNISTCNN
+        args.train_data_loader_pickle_path = "data_loaders/fashion-mnist/train_data_loader.pickle"
+        args.test_data_loader_pickle_path = "data_loaders/fashion-mnist/test_data_loader.pickle"
     #===================================================================================================================
     #========================================= Start the Federated Learning ============================================
     #===================================================================================================================
@@ -236,7 +246,7 @@ def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_
     distributed_train_dataset = load_pickle_file(args.get_train_data_loader_pickle_path())
     test_data_loader = load_pickle_file(args.get_test_data_loader_pickle_path())
     #
-    # plots.plot_data_distribution(distributed_train_dataset)
+    # plots.plot_data_distribution(distributed_train_dataset, lbl_classes)
 
     # 1.2. Poison Data for clients and create the data loaders
     if args.get_algorithm() in ["fed_greedy", "fed_max"]:
@@ -254,14 +264,14 @@ def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_
         # After selecting the clients, poison the data of the selected clients
         poisoned_workers_idx = selected_worker[len(selected_worker) - KWARGS["NUM_POISONED_WORKERS"]:]
         logger.info("Poisoned Workers: {}", poisoned_workers_idx)
-        distributed_train_dataset = poison_data(logger, distributed_train_dataset, args.get_num_workers(),args.lbl_num, poisoned_workers_idx, replacement_method, attack_strength)
+        distributed_train_dataset = poison_data(logger, distributed_train_dataset, args.get_num_workers(), lbl_classes, poisoned_workers_idx, replacement_method, attack_strength)
         data_distribution = generate_data_loaders_from_distributed_dataset(distributed_train_dataset, args.get_batch_size())
         clients = create_clients(args, data_distribution, test_data_loader)
 
     elif args.get_algorithm() in ["fed_avg", "fed_prox"]:
         poisoned_workers = identify_random_elements(args.get_num_workers(), args.get_num_poisoned_workers())
         logger.info("Poisoned Workers: {}", poisoned_workers)
-        distributed_train_dataset = poison_data(logger, distributed_train_dataset, args.get_num_workers(),args.lbl_num, poisoned_workers, replacement_method, attack_strength)
+        distributed_train_dataset = poison_data(logger, distributed_train_dataset, args.get_num_workers(),lbl_classes, poisoned_workers, replacement_method, attack_strength)
         data_distribution = generate_data_loaders_from_distributed_dataset(distributed_train_dataset, args.get_batch_size())
         clients = create_clients(args, data_distribution, test_data_loader)
 

@@ -2,14 +2,11 @@ import copy
 
 from .selection_strategy import SelectionStrategy
 import  random
-random.seed(42)
+from federated_learning.arguments import Arguments
 
-TOTAL_LBL = set(range(10))  # assuming labels are from 0 to 9 => MNIST, CIFAR10, FashionMNIST
+
 # TOTAL_LBL = set(range(6))  # assuming labels are from 0 to 5    => HAPT
 
-# Function to calculate Jaccard distance between client's labels and total labels
-# def jaccard_distance(client_labels):
-#     return len(client_labels.intersection(TOTAL_LBL)) / len(client_labels.union(TOTAL_LBL))
 def jaccard_similarity(set1, set2):
     intersection = len(set1.intersection(set2))
     union = len(set1.union(set2))
@@ -19,10 +16,8 @@ class JaccardGreedySelectionStrategy(SelectionStrategy):
     """
     Randomly selects workers out of the list of all workers
     """
-    from functools import reduce
-
-
-    def filter_and_sort_clients(self, workers):
+    random.seed(42)
+    def filter_and_sort_clients(self, workers, TOTAL_LBL ):
         valid_clients = {worker_idx: set(labels.get_attributes_name()) for worker_idx, labels in enumerate(workers) if
                          set(labels.get_attributes_name()).issubset(TOTAL_LBL)}
         sorted_clients = sorted(valid_clients,
@@ -31,7 +26,8 @@ class JaccardGreedySelectionStrategy(SelectionStrategy):
         print("Sorted Clients: ", sorted_clients)
         return sorted_clients, valid_clients
     def select_round_workers(self, workers, poisoned_workers, kwargs):
-        sorted_clients, valid_clients = self.filter_and_sort_clients(workers)
+        TOTAL_LBL = set(range(kwargs["LABELS_NUM"]))
+        sorted_clients, valid_clients = self.filter_and_sort_clients(workers, TOTAL_LBL)
         print(valid_clients)
         # Greedy algorithm to select clients covering all labels
         selected_clients = list()
@@ -70,7 +66,7 @@ class JaccardGreedySelectionStrategy(SelectionStrategy):
                             print("Selected labels: ", selected_labels)
                             print("Selected clients: ", [workers[i].get_client_index() for i in  selected_clients])
                             # Re-sort the clients and valid clients by default mode
-                            sorted_clients, valid_clients = self.filter_and_sort_clients(workers)
+                            sorted_clients, valid_clients = self.filter_and_sort_clients(workers, TOTAL_LBL)
                             break
                         else:
                             continue
@@ -79,7 +75,7 @@ class JaccardGreedySelectionStrategy(SelectionStrategy):
                         random.seed(min(list(new_labels)))
                         temp_worker = copy.deepcopy(workers)
                         random.shuffle(temp_worker)
-                        sorted_clients, valid_clients = self.filter_and_sort_clients(temp_worker)
+                        sorted_clients, valid_clients = self.filter_and_sort_clients(workers, TOTAL_LBL)
                         break
             else:
                 random.shuffle(workers)

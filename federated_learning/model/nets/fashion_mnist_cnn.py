@@ -18,7 +18,7 @@ class FashionMNISTCNN(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(2))
 
-        self.fc = nn.Linear(7*7*32, 10)
+        self.fc_f = nn.Linear(7*7*32, 10)
 
     def forward(self, x):
         x = self.layer1(x)
@@ -26,6 +26,6 @@ class FashionMNISTCNN(nn.Module):
 
         x = x.view(x.size(0), -1)
 
-        x = self.fc(x)
+        x = self.fc_f(x)
 
         return x

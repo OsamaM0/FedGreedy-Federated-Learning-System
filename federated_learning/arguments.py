@@ -13,7 +13,6 @@ class Arguments:
         self.algorithm = "fed_avg"
         self.batch_size = 6
         self.test_batch_size = 1000
-        self.lbl_num = 10
         self.cr = 3
         self.epoch = 2
         self.lr = 0.01
@@ -46,8 +45,8 @@ class Arguments:
         self.struggling_epochs_percentage = 0
 
         # self.net = Cifar10CNN
-        self.net = FashionMNISTCNN
-        # self.net = HAPTDNN
+        # self.net = FashionMNISTCNN
+        self.net = HAPTDNN
 
         self.train_data_loader_pickle_path = "data_loaders/fashion-mnist/train_data_loader.pickle"
         self.test_data_loader_pickle_path = "data_loaders/fashion-mnist/test_data_loader.pickle"

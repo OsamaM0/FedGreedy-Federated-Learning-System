@@ -1,5 +1,6 @@
 import copy
 import math
+import os
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -155,11 +156,14 @@ def run_machine_learning(args, struggle_workers):
         results, clients_repitition, clients_struggle = train_subset_of_clients(args, copy.deepcopy(c_round) , clients_poisoned, clients_repitition, struggle_workers)
 
         # Track the poisoned workers after each epoch
+        path = args.get_save_model_folder_path()
         if args.get_algorithm() == "fed_greedy" and c_round > 1:
-                prop_poisoned_workers = get_poisoned_worker(c_round, args.get_save_model_folder_path())
+                prop_poisoned_workers = get_poisoned_worker(c_round, path)
         else:
             prop_poisoned_workers = []
-
+        # Delete models after each epoch
+        for model_file in os.listdir(path):
+            os.remove(os.path.join(path, model_file))
         clients_poisoned = []
         # Determine which workers were selected
         for client, values in clients_repitition.items():

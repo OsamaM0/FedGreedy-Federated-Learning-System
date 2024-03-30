@@ -13,12 +13,12 @@ class Arguments:
         self.algorithm = "fed_avg"
         self.batch_size = 6
         self.test_batch_size = 1000
-        self.cr = 3
+        self.cr = 200
         self.epoch = 2
         self.lr = 0.01
-        self.mu = 0.001
-        self.momentum = 0.5
-        self.cuda = False
+        self.mu = 0.01
+        self.momentum = 0.9
+        self.cuda = True
         self.shuffle = True
         self.log_interval = 100
         self.kwargs = {}
@@ -50,6 +50,7 @@ class Arguments:
 
         self.train_data_loader_pickle_path = "data_loaders/fashion-mnist/train_data_loader.pickle"
         self.test_data_loader_pickle_path = "data_loaders/fashion-mnist/test_data_loader.pickle"
+
         # self.train_data_loader_pickle_path = "data_loaders/mnist/train_data_loader.pickle"
         # self.test_data_loader_pickle_path = "data_loaders/mnist/test_data_loader.pickle"
         # self.train_data_loader_pickle_path = "data_loaders/cifar10/train_data_loader.pickle"

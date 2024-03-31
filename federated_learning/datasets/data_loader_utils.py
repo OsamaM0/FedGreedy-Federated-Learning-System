@@ -89,7 +89,7 @@ def generate_test_loader(args, dataset):
 
 def shuffle_data(args, dataset):
     data = list(zip(dataset[0], dataset[1]))
-    random.shuffle(data)
+    # random.shuffle(data)
     X, Y = zip(*data)
     X = numpy.asarray(X)
     Y = numpy.asarray(Y)

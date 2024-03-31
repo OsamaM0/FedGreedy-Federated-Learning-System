@@ -1,5 +1,7 @@
 from collections import OrderedDict
+import random
 
+import numpy as np
 import torch
 import torch.optim as optim
 from sklearn.metrics import confusion_matrix
@@ -171,11 +173,22 @@ class Client:
             raise ValueError("Unsupported model type. Model must be a PyTorch model or an OrderedDict.")
 
         return dss
-    def train(self, round, epochs = 5, type="fed_avg"):
+
+    def train(self, round, epochs=5, type="fed_avg", seed=40):
         """
         :param round: Current round #
         :type round: int
+        :param seed: Seed for random number generation
+        :type seed: int or None
         """
+        # Set random seed for reproducibility
+        if seed is not None:
+            torch.manual_seed(seed)
+            np.random.seed(seed)
+            random.seed(seed)
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+
         # Get the server model
         server_model = copy.deepcopy(self.get_nn_parameters())
         # Set the model to training mode
@@ -204,7 +217,7 @@ class Client:
 
                 # print statistics
                 running_loss += loss.item()
-                if i % self.args.get_log_interval() == 0 and epoch == epochs-1:
+                if i % self.args.get_log_interval() == 0 and epoch == epochs - 1:
                     self.args.get_logger().info(
                         '[%d, %5d] loss: %.3f' % (round, i, running_loss / self.args.get_log_interval()))
 

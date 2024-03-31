@@ -22,8 +22,9 @@ class PaperSelectionStrategy(SelectionStrategy):
         # Database Reputation
         jaccard_sim = [jaccard_similarity(list(range(kwargs["LABELS_NUM"])), worker.get_attributes_name()) for worker in workers]
         n_largest_jaccard_sim = n_largest_index(jaccard_sim, kwargs["NUM_WORKERS_PER_ROUND"])
-        print(n_largest_jaccard_sim)
+        n_largest_index_for_clients = [ worker.get_client_index()  for i, worker in enumerate(workers) if i in n_largest_jaccard_sim]
+        print(n_largest_index_for_clients)
 
         # Training Reputation
 
-        return n_largest_jaccard_sim
+        return n_largest_index_for_clients

@@ -260,11 +260,12 @@ def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_
         # Remove the struggling workers
         logger.info("Struggle Workers: {}", struggle_workers)
         clients_temp = [client for client in clients if client.get_client_index() not in struggle_workers]
-        logger.info("Clients: {}", [client.get_client_index() for client in clients_temp] )
+        logger.info("Not Struggle Worker: {}", [client.get_client_index() for client in clients_temp] )
         selected_worker = args.get_round_worker_selection_strategy().select_round_workers(
             clients_temp,
             [],
             KWARGS)
+        logger.info("Selected Workers: {}",selected_worker)
         # After selecting the clients, poison the data of the selected clients
         poisoned_workers_idx = selected_worker[len(selected_worker) - KWARGS["NUM_POISONED_WORKERS"]:]
         logger.info("Poisoned Workers: {}", poisoned_workers_idx)

@@ -17,11 +17,13 @@ if __name__ == '__main__':
     REPLACEMENT_METHOD = global_replace_hapt
     NUM_WORKER_PER_ROUND = 10
 
-    for dataset in [ 'FASHION_MNIST', 'HAPT']:
-        for attacker_num in [5,4,3,2,1] :
-            for strength_num in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
-                for algorithm in ["fed_greedy", "fed_avg", "fed_prox",  "fed_max"]:
-                    for data_distribution in ["iid","non_iid"]:
+    for dataset in ['HAPT']: #'FASHION_MNIST',]:
+        for attacker_num in [5,3,1] :
+            for strength_num in [0.9, 0.1]:
+                for algorithm in ["fed_avg"]:
+                    for data_distribution in ["iid"]:
+                        if algorithm == "fed_greedy" and data_distribution == "iid":
+                            continue
                         experiment_id =[f"{attacker_num}_{strength_num}", f"{dataset}-{algorithm}_{data_distribution}"]
                         logger.info(f"Running experiment {experiment_id}")
                         KWARGS = {

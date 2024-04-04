@@ -89,11 +89,16 @@ def global_replace_hapt(targets_labels, target_set, poison_strength):
             if targets_labels[idx] == 0:
                 targets[idx] = 5
             elif targets_labels[idx] == 1:
-                targets[idx] = 3
-            elif targets_labels[idx] == 2:
-                targets[idx] = 5
-            elif targets_labels[idx] == 3:
                 targets[idx] = 4
+            elif targets_labels[idx] == 2:
+                targets[idx] = 3
+            elif targets_labels[idx] == 3:
+                targets[idx] = 2
+            elif targets_labels[idx] == 4:
+                targets[idx] = 1
+            elif targets_labels[idx] == 5:
+                targets[idx] = 0
+
 
     logger.debug("Starting global replacement")
     return targets

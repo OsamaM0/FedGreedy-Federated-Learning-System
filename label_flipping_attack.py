@@ -18,12 +18,10 @@ if __name__ == '__main__':
     NUM_WORKER_PER_ROUND = 10
 
     for dataset in ['HAPT']: #'FASHION_MNIST',]:
-        for attacker_num in [5,3,1] :
-            for strength_num in [0.9, 0.1]:
-                for algorithm in ["fed_avg"]:
-                    for data_distribution in ["iid"]:
-                        if algorithm == "fed_greedy" and data_distribution == "iid":
-                            continue
+        for data_distribution in ["iid", "non_iid"]:
+            for attacker_num in [1, 3, 5] :
+                for strength_num in [0.9, 0.5, 0.1]:
+                    for algorithm in ['fed_avg', 'fed_greedy', 'fed_prox', 'fed_max']:
                         experiment_id =[f"{attacker_num}_{strength_num}", f"{dataset}-{algorithm}_{data_distribution}"]
                         logger.info(f"Running experiment {experiment_id}")
                         KWARGS = {

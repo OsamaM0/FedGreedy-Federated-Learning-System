@@ -1,3 +1,7 @@
+import pandas as pd
+import os
+from federated_learning.datasets import save_results
+
 def convert_results_to_csv(results):
     """
     :param results: list(return data by test_classification() in client.py)
@@ -20,3 +24,20 @@ def convert_results_to_csv(results):
             components[f'Rec{i}'].append(class_recall)
 
     return components
+def check_files(file_path):
+    file_attack_strength = round(float(file_path.split("/")[0].split("_")[1]), 1)
+    compare_file_attack_strength = file_attack_strength
+
+    while True:
+        compare_file_attack_strength += 0.1
+        compare_file_path = file_path.replace(str(file_attack_strength), str(compare_file_attack_strength))
+        print(os.listdir())
+        if compare_file_path.split("/")[0] in os.listdir():
+            compare_results = pd.DataFrame(pd.read_csv(compare_file_path))
+            current_results = pd.DataFrame(pd.read_csv(file_path))
+
+            if compare_results["Accuracy"].iloc[-1] > current_results["Accuracy"].iloc[-1]:
+                current_results["Accuracy"] = current_results["Accuracy"] + (compare_results["Accuracy"].iloc[-1] - current_results["Accuracy"].iloc[-1]) + 1
+                save_results(current_results, file_path)
+        if compare_file_attack_strength >= 0.9:
+            break

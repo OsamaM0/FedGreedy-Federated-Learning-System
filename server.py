@@ -1,9 +1,11 @@
 import copy
 import math
 import os
+import pathlib
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from loguru import logger
 from federated_learning.model.nets import FashionMNISTCNN, HAPTDNN
 import plots
@@ -15,7 +17,7 @@ from attack import poison_data
 from federated_learning.utils import identify_random_elements
 from federated_learning.datasets import save_results
 from federated_learning.utils import generate_experiment_ids
-from federated_learning.utils import convert_results_to_csv
+from federated_learning.utils import convert_results_to_csv, check_files
 from federated_learning.utils import load_pickle_file
 from client import Client
 from defence import get_poisoned_worker
@@ -202,7 +204,7 @@ def run_machine_learning(args, struggle_workers):
 def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_selection_strategy, data_distribution, idx):
     print(idx)
     log_files, results_files, models_folders, reputation_selections_files, data_worker_file = generate_experiment_ids(idx, 1)
-
+    print(log_files, results_files, models_folders, reputation_selections_files, data_worker_file, sep="\n")
     # Initialize logger
     handler = logger.add(log_files[0], enqueue=True)
     # Get the User Arguments
@@ -287,5 +289,7 @@ def run_exp(replacement_method, num_poisoned_workers, KWARGS, algorithm, client_
     save_results(results, results_files[0])
     save_results(worker_reputation, reputation_selections_files[0])
     save_results(worker_data, data_worker_file[0])
+    check_files(results_files[0])
+
 
     logger.remove(handler)

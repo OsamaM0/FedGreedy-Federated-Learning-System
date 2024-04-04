@@ -13,8 +13,8 @@ class Arguments:
         self.algorithm = "fed_avg"
         self.batch_size = 6
         self.test_batch_size = 1000
-        self.cr = 200
-        self.epoch = 2
+        self.cr = 5
+        self.epoch = 200
         self.lr = 0.01
         self.mu = 0.01
         self.momentum = 0.9
